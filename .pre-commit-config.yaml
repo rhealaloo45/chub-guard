@@ -1,0 +1,14 @@
+repos:
+  - repo: local
+    hooks:
+      - id: chub-deprecation-guard
+        name: chub deprecation guard
+        entry: python scripts/chub_guard.py run
+        language: python
+        types: [python]
+        pass_filenames: true
+        stages: [pre-commit]
+        additional_dependencies:
+          - rich
+          - click
+          - ruff

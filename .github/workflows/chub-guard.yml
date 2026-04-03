@@ -1,0 +1,45 @@
+name: chub Deprecation Guard
+
+on:
+  pull_request:
+    paths: ['**.py']
+
+jobs:
+  chub-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install chub
+        run: npm install -g @aisuite/chub
+
+      - name: Install Python deps
+        run: pip install ruff rich click requests
+
+      - name: Get changed Python files
+        id: changed
+        run: |
+          FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- '*.py' | tr '\n' ' ')
+          echo "files=$FILES" >> $GITHUB_OUTPUT
+
+      - name: Run chub guard
+        if: steps.changed.outputs.files != ''
+        run: python scripts/chub_guard.py run ${{ steps.changed.outputs.files }}
+
+      - name: Cache chub docs
+        uses: actions/cache@v4
+        with:
+          path: .chub-docs/
+          key: chub-docs-${{ hashFiles('.chub-docs/registry.json') }}-${{ github.run_id }}
+          restore-keys: |
+            chub-docs-${{ hashFiles('.chub-docs/registry.json') }}-
