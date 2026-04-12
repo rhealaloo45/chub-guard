@@ -257,7 +257,7 @@ def run(filenames):
             if line - 1 < len(lines) and "# noqa: UP" in lines[line - 1]:
                 return
             # Prevent duplicates
-            if not any(v["location"]["row"] == line and v["_synth_mod"] == mod for v in ruff_output):
+            if not any(v["location"]["row"] == line and v.get("_synth_mod") == mod for v in ruff_output):
                 ruff_output.append({
                     "filename": str(f),
                     "location": {"row": line, "column": col},
@@ -379,8 +379,9 @@ def update_registry():
         try:
             res = subprocess.run([chub_cmd, "search", tag, "--json"], capture_output=True, text=True, timeout=30)
             if res.returncode == 0 and res.stdout.strip():
-                results = json.loads(res.stdout)
-                for item in results:
+                data = json.loads(res.stdout)
+                results_list = data.get("results", []) if isinstance(data, dict) else data
+                for item in results_list:
                     # simplistic heuristic: if we can guess the python import name
                     doc_id = item.get("id")
                     if doc_id:
