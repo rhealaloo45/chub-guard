@@ -1,47 +1,77 @@
-# chub-guard-init
+# 🛡️ chub-guard-init
 
-One command to set up [chub_guard](https://github.com/rhealaloo45/chub-guard)
-in any project.
+**The zero-config installer for the AI-Native era.**
 
-## Prerequisites
+[![npm version](https://img.shields.io/npm/v/chub-guard-init.svg)](https://www.npmjs.com/package/chub-guard-init)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-- Node >= 18
-- Python + pip
-- git
+## 📖 The Problem
+AI coding assistants (like Copilot, Cursor, or Gemini) often suggest project patterns that use **deprecated AI SDK APIs**. These pass your tests and standard linters but fail in production or create hidden technical debt. No existing CI tool natively catches semantic AI API deprecations because they evolve too rapidly.
 
-## Usage
+## 🚀 The Solution
+`chub-guard-init` is the official one-command setup for `chub-guard`. It installs a specialized git-hook that blocks modern AI project deprecations before they ever reach your codebase by syncing with live documentation.
 
-Run once in any new project:
+---
 
-    npx chub-guard-init
+## 🛠 Prerequisites
 
-This will:
-- Copy `chub_guard.py` into `scripts/`
-- Write `.pre-commit-config.yaml`
-- Write `.chub-docs/registry.json`
-- Run `pre-commit install` automatically
+Ensure your environment is ready:
+* **Node.js**: >= 18.x
+* **Python**: 3.8+ (with `pip`)
+* **Git**: Project must be a git repository
 
-## After Setup
+---
 
-Install chub so the guard can fetch live docs:
+## 🏎️ Usage
 
-    npm install -g @aisuite/chub
+Run this command once at the root of any Python project:
 
-Make a commit to test it:
+```bash
+npx chub-guard-init
+```
 
-    git commit -m "test"
+### What happens under the hood?
+1. **Automated Hook Setup**: Installs `pre-commit` and registers the `chub-guard` linter in your `.git/hooks`.
+2. **Environment Fallback**: Automatically configures the hook to work across different Python environments (virtualenvs, global, etc.) by using `python3 -m` fallbacks.
+3. **Smart .gitignore**: Injects rules to ignore documentation caches (`.chub-docs/*.md`) to keep your repo light, while keeping the core linter shared with your team.
+4. **Registry Injection**: Writes the initial `registry.json` mapping for common AI SDKs (OpenAI, Gemini, Anthropic, Langchain).
 
-## Suppressing False Positives
+---
 
-Add `# noqa: UP035` to any line to skip:
+## 🏁 After Setup
 
-    import google.generativeai as genai  # noqa: UP035
+Once installed, simply install the `chub` CLI to enable live documentation fetching:
 
-## Updating the Registry
+```bash
+npm install -g @aisuite/chub
+```
 
-    python scripts/chub_guard.py update-registry
+Now, every time you `git commit`, the guard will proactively scan your changed files. If it finds a deprecated pattern, it will **block the commit** and provide you with a beautiful, rich terminal guide extracted directly from the official docs.
 
-## Part of chub-guard
+---
 
-This is the installer for chub_guard.
-Full docs: https://github.com/rhealaloo45/chub-guard
+## ⚙️ Configuration & Maintenance
+
+### Suppressing False Positives
+If you intentionally need to keep a legacy import for a specific line, simply append the standard suppression comment:
+```python
+import google.generativeai as genai  # noqa: UP035
+```
+
+### Syncing with the Ecosystem
+As new AI SDKs release and old ones are deprecated, keep your project in sync with the latest rules:
+```bash
+python scripts/chub_guard.py update-registry
+```
+
+---
+
+## 🤝 Credits & Ecosystem
+This tool is part of the **chub-guard** ecosystem and relies on **Andrew Ng’s [context-hub](https://github.com/andrewyng/context-hub)** for real-time documentation mapping.
+
+**Documentation**: [github.com/rhealaloo45/chub-guard](https://github.com/rhealaloo45/chub-guard)
+
+---
+
+## 📄 License
+MIT © [Rhea Laloo](https://github.com/rhealaloo45)
