@@ -1,0 +1,13 @@
+{
+  "google.generativeai": "gemini/genai",
+  "google":              "gemini/genai",
+  "openai":              "openai/package",
+  "anthropic":           "anthropic/package",
+  "langchain":           "langchain/package",
+  "langchain_core":      "langchain/core",
+  "langchain_community": "langchain/community",
+  "mistralai":           "mistralai/package",
+  "cohere":              "cohere/package",
+  "boto3":               "aws/boto3",
+  "azure.ai":            "azure/openai"
+}
