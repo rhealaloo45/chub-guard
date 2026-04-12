@@ -17,12 +17,47 @@ const REGISTRY_JSON   = readFileSync(join(assetsDir, '.chub-docs', 'registry.jso
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function isPreCommitInstalled() {
+function getPreCommitCommand() {
   try {
     execSync('pre-commit --version', { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
+    return 'pre-commit';
+  } catch {}
+  try {
+    execSync('python3 -m pre_commit --version', { stdio: 'ignore' });
+    return 'python3 -m pre_commit';
+  } catch {}
+  try {
+    execSync('python -m pre_commit --version', { stdio: 'ignore' });
+    return 'python -m pre_commit';
+  } catch {}
+  return null;
+}
+
+function updateGitignore() {
+  const gitignorePath = join(cwd, '.gitignore');
+  const ignoreLines = [
+    '',
+    '# chub-guard cache',
+    '.chub-docs/*.md',
+    'scripts/__pycache__/',
+  ];
+  
+  let content = '';
+  if (existsSync(gitignorePath)) {
+    content = readFileSync(gitignorePath, 'utf8');
+  }
+  
+  // Filter out lines that already exist
+  const linesToAdd = ignoreLines.filter(line => {
+    if (line === '') return false;
+    return !content.includes(line);
+  });
+  
+  if (linesToAdd.length > 0) {
+    const prefix = content === '' ? '' : (content.endsWith('\n') ? '' : '\n');
+    const addition = (content === '' ? '' : '\n# chub-guard\n') + linesToAdd.join('\n') + '\n';
+    writeFileSync(gitignorePath, content + prefix + addition, 'utf8');
+    console.log('✓ Updated .gitignore');
   }
 }
 
@@ -73,6 +108,9 @@ await safeWrite(join(cwd, 'scripts', 'chub_guard.py'), CHUB_GUARD_PY, 'scripts/c
 await safeWrite(join(cwd, '.pre-commit-config.yaml'), PRE_COMMIT_YAML, '.pre-commit-config.yaml');
 await safeWrite(join(cwd, '.chub-docs', 'registry.json'), REGISTRY_JSON, '.chub-docs/registry.json');
 
+// 3. Update .gitignore
+updateGitignore();
+
 console.log('');
 
 // 3. Check for git repo
@@ -83,10 +121,11 @@ if (!isGitRepo()) {
   process.exit(0);
 }
 
-// 4. Run pre-commit install
-if (isPreCommitInstalled()) {
+// 5. Run pre-commit install
+const preCommitCmd = getPreCommitCommand();
+if (preCommitCmd) {
   try {
-    execSync('pre-commit install', { cwd, stdio: 'inherit' });
+    execSync(`${preCommitCmd} install`, { cwd, stdio: 'inherit' });
     console.log('');
     console.log('✓ pre-commit hook installed');
     console.log('');
@@ -98,13 +137,13 @@ if (isPreCommitInstalled()) {
     console.log('  2. Make a commit to test the guard');
     console.log('');
   } catch {
-    console.log('⚠ pre-commit install failed. Run manually: pre-commit install');
+    console.log(`⚠ ${preCommitCmd} install failed. Run manually: ${preCommitCmd} install`);
   }
 } else {
   console.log('⚠ pre-commit not found. To finish setup:');
   console.log('');
   console.log('  pip install pre-commit');
-  console.log('  pre-commit install');
+  console.log('  python3 -m pre_commit install');
   console.log('');
   console.log('Then install chub: npm install -g @aisuite/chub');
 }
