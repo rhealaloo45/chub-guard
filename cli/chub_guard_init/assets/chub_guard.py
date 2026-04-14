@@ -58,7 +58,7 @@ def get_imported_modules(file_path: Path) -> dict[str, list[tuple[int, int]]]:
     def add_mod(name, node):
         line = node.lineno
         # Check for noqa suppression
-        if line - 1 < len(lines) and "# noqa: UP" in lines[line - 1]:
+        if line - 1 < len(lines) and any(kw in lines[line - 1] for kw in ["# noqa: UP", "# noqa: CHUB"]):
             return
         if name not in modules:
             modules[name] = []
@@ -259,14 +259,14 @@ def run(filenames):
             continue
 
         def add_synth(line, col, mod, msg):
-            if line - 1 < len(lines) and "# noqa: UP" in lines[line - 1]:
+            if line - 1 < len(lines) and any(kw in lines[line - 1] for kw in ["# noqa: UP", "# noqa: CHUB"]):
                 return
             # Prevent duplicates
             if not any(v["location"]["row"] == line and v.get("_synth_mod") == mod for v in ruff_output):
                 ruff_output.append({
                     "filename": str(f),
                     "location": {"row": line, "column": col},
-                    "code": "UP035",
+                    "code": "CHUB",
                     "message": msg,
                     "_synth_mod": mod
                 })
@@ -297,7 +297,7 @@ def run(filenames):
 
         # Step 2: Dynamic text matching against chub guidelines (for explicit string matches)
         for line_idx, line in enumerate(lines):
-            if "# noqa: UP" in line:
+            if any(kw in line for kw in ["# noqa: UP", "# noqa: CHUB"]):
                 continue
             
             for doc_id, patterns in dynamic_patterns.items():
@@ -309,8 +309,7 @@ def run(filenames):
     violations = []
     for item in ruff_output:
         code = item.get("code", "")
-        if not code.startswith("UP"):
-            continue
+        # Remove the strict UP filter to allow both ruff and chub issues in the report
             
         file_path = Path(item["filename"])
         
@@ -353,6 +352,9 @@ def run(filenames):
         console.print("[green]✓ No deprecated API calls detected[/green]")
         sys.exit(0)
 
+    ai_violations = [v for v in violations if v.code == "CHUB"]
+    python_violations = [v for v in violations if v.code != "CHUB"]
+
     # ── Summary header ──────────────────────────────────────────────
     console.print()
     console.print(Rule("[bold red]DEPRECATED API USAGE DETECTED[/bold red]", style="red"))
@@ -372,41 +374,51 @@ def run(filenames):
     summary_text.append(f" file{'s' if len(file_counts) != 1 else ''}\n", style="bold")
     console.print(summary_text)
 
-    # ── Violations table ────────────────────────────────────────────
-    table = Table(
-        show_header=True,
-        header_style="bold cyan",
-        border_style="dim",
-        title_style="bold",
-        pad_edge=True,
-        expand=True,
-    )
-    table.add_column("#", style="dim", width=4, justify="right")
-    table.add_column("File", style="yellow", no_wrap=True, ratio=3)
-    table.add_column("Line", style="magenta", width=6, justify="right")
-    table.add_column("Code", style="cyan", width=7)
-    table.add_column("Issue", ratio=6)
-
+    # ── AI SDK Violations table ──────────────────────────────────────
     seen_hints = {}  # doc_id → chub_hint (deduplicate)
-    for idx, v in enumerate(violations, 1):
-        # Build the issue text with color
-        issue = Text(v.message)
-        if v.doc_id:
-            issue.append(f"  [{v.doc_id}]", style="dim")
-
-        table.add_row(
-            str(idx),
-            str(v.filename),
-            str(v.line),
-            v.code,
-            issue,
+    if ai_violations:
+        ai_table = Table(
+            show_header=True,
+            header_style="bold green",
+            border_style="dim",
+            title="[bold green]✦ AI SDK Deprecations (Chub)[/bold green]",
+            pad_edge=True,
+            expand=True,
         )
+        ai_table.add_column("#", style="dim", width=4, justify="right")
+        ai_table.add_column("File", style="yellow", no_wrap=True, ratio=3)
+        ai_table.add_column("Line", style="magenta", width=6, justify="right")
+        ai_table.add_column("Issue", ratio=7)
 
-        # Collect unique hints
-        if v.chub_hint and v.doc_id and v.doc_id not in seen_hints:
-            seen_hints[v.doc_id] = v.chub_hint
+        for idx, v in enumerate(ai_violations, 1):
+            issue = Text(v.message)
+            if v.doc_id:
+                issue.append(f"  [{v.doc_id}]", style="dim")
+            ai_table.add_row(str(idx), str(v.filename), str(v.line), issue)
+            if v.chub_hint and v.doc_id and v.doc_id not in seen_hints:
+                seen_hints[v.doc_id] = v.chub_hint
+        console.print(ai_table)
+        console.print()
 
-    console.print(table)
+    # ── Python Violations table ──────────────────────────────────────
+    if python_violations:
+        py_table = Table(
+            show_header=True,
+            header_style="bold cyan",
+            border_style="dim",
+            title="[bold cyan]🐍 Python Deprecations & Issues (Ruff)[/bold cyan]",
+            pad_edge=True,
+            expand=True,
+        )
+        py_table.add_column("#", style="dim", width=4, justify="right")
+        py_table.add_column("File", style="yellow", no_wrap=True, ratio=3)
+        py_table.add_column("Line", style="magenta", width=6, justify="right")
+        py_table.add_column("Code", style="cyan", width=8)
+        py_table.add_column("Issue", ratio=6)
+
+        for idx, v in enumerate(python_violations, 1):
+            py_table.add_row(str(idx), str(v.filename), str(v.line), v.code, v.message)
+        console.print(py_table)
 
     # ── Chub hints (one per SDK) ────────────────────────────────────
     if seen_hints:
@@ -443,18 +455,36 @@ def run(filenames):
         "",
         f"**{len(violations)}** issue{'s' if len(violations) != 1 else ''} found across **{len(file_counts)}** file{'s' if len(file_counts) != 1 else ''}.",
         "",
-        "### Issues",
-        "",
-        "| # | File | Line | Code | Issue |",
-        "|---|------|------|------|-------|",
     ]
-    for idx, v in enumerate(violations, 1):
-        issue_text = v.message
-        if v.doc_id:
-            issue_text += f" *[{v.doc_id}]*"
-        issue_text = issue_text.replace("|", "\\|")
-        fname = str(v.filename).replace("\\", "/")
-        run_lines.append(f"| {idx} | `{fname}` | {v.line} | `{v.code}` | {issue_text} |")
+
+    if ai_violations:
+        run_lines += [
+            "### ✦ AI SDK Deprecations",
+            "",
+            "| # | File | Line | Issue |",
+            "|---|------|------|-------|",
+        ]
+        for idx, v in enumerate(ai_violations, 1):
+            issue_text = v.message
+            if v.doc_id:
+                issue_text += f" *[{v.doc_id}]*"
+            issue_text = issue_text.replace("|", "\\|")
+            fname = str(v.filename).replace("\\", "/")
+            run_lines.append(f"| {idx} | `{fname}` | {v.line} | {issue_text} |")
+        run_lines.append("")
+
+    if python_violations:
+        run_lines += [
+            "### 🐍 Python Deprecations & Issues",
+            "",
+            "| # | File | Line | Code | Issue |",
+            "|---|------|------|------|-------|",
+        ]
+        for idx, v in enumerate(python_violations, 1):
+            issue_text = v.message.replace("|", "\\|")
+            fname = str(v.filename).replace("\\", "/")
+            run_lines.append(f"| {idx} | `{fname}` | {v.line} | `{v.code}` | {issue_text} |")
+        run_lines.append("")
 
     if seen_hints:
         run_lines += [
