@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "chub-guard-init"
+version = "1.0.1"
+description = "One-command setup for chub_guard - the AI SDK deprecation linter"
+readme = "README.md"
+license = "MIT"
+authors = [{name = "Rhea Laloo"}]
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+chub-guard-init = "chub_guard_init.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["chub_guard_init"]
