@@ -1,4 +1,5 @@
 import ast
+import datetime
 import json
 import shutil
 import subprocess
@@ -12,6 +13,10 @@ import urllib.error
 import click
 from rich.console import Console
 from rich.panel import Panel
+from rich.table import Table
+from rich.syntax import Syntax
+from rich.text import Text
+from rich.rule import Rule
 
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
@@ -327,8 +332,14 @@ def run(filenames):
             # to prevent confusing standard library deprecations with SDK docs.
             pass
 
+        # Robust nested path resolution: resolve both to absolute, then compute relative
+        try:
+            display_name = file_path.resolve().relative_to(REPO_ROOT.resolve())
+        except ValueError:
+            display_name = file_path
+
         v = Violation(
-            filename=file_path.relative_to(REPO_ROOT) if REPO_ROOT in file_path.parents else file_path,
+            filename=display_name,
             line=item["location"]["row"],
             col=item["location"]["column"],
             code=code,
@@ -342,20 +353,163 @@ def run(filenames):
         console.print("[green]✓ No deprecated API calls detected[/green]")
         sys.exit(0)
 
+    # ── Summary header ──────────────────────────────────────────────
+    console.print()
+    console.print(Rule("[bold red]DEPRECATED API USAGE DETECTED[/bold red]", style="red"))
+    console.print()
+
+    # Count violations per file for the header
+    file_counts = {}
     for v in violations:
-        text = f"File:    {v.filename}  line {v.line}\n"
-        text += f"Code:    {v.code}\n"
-        text += f"Message: {v.message}\n"
-        
-        if v.chub_hint:
-            text += f"\nCurrent API (via chub {v.doc_id}):\n"
-            text += v.chub_hint + "\n"
-            text += f"\nRun for full docs:\n  chub get {v.doc_id} --lang python\n"
+        fname = str(v.filename)
+        file_counts[fname] = file_counts.get(fname, 0) + 1
 
-        console.print(Panel(text, title="[red]✗ DEPRECATED API DETECTED[/red]", border_style="red"))
+    summary_text = Text()
+    summary_text.append(f"  Found ", style="bold")
+    summary_text.append(f"{len(violations)}", style="bold red")
+    summary_text.append(f" issue{'s' if len(violations) != 1 else ''} across ", style="bold")
+    summary_text.append(f"{len(file_counts)}", style="bold red")
+    summary_text.append(f" file{'s' if len(file_counts) != 1 else ''}\n", style="bold")
+    console.print(summary_text)
 
-    console.print("\nCommit blocked. Fix the above and re-commit.")
-    console.print("To suppress a known false positive: add  # noqa: UP<code>  to the line.")
+    # ── Violations table ────────────────────────────────────────────
+    table = Table(
+        show_header=True,
+        header_style="bold cyan",
+        border_style="dim",
+        title_style="bold",
+        pad_edge=True,
+        expand=True,
+    )
+    table.add_column("#", style="dim", width=4, justify="right")
+    table.add_column("File", style="yellow", no_wrap=True, ratio=3)
+    table.add_column("Line", style="magenta", width=6, justify="right")
+    table.add_column("Code", style="cyan", width=7)
+    table.add_column("Issue", ratio=6)
+
+    seen_hints = {}  # doc_id → chub_hint (deduplicate)
+    for idx, v in enumerate(violations, 1):
+        # Build the issue text with color
+        issue = Text(v.message)
+        if v.doc_id:
+            issue.append(f"  [{v.doc_id}]", style="dim")
+
+        table.add_row(
+            str(idx),
+            str(v.filename),
+            str(v.line),
+            v.code,
+            issue,
+        )
+
+        # Collect unique hints
+        if v.chub_hint and v.doc_id and v.doc_id not in seen_hints:
+            seen_hints[v.doc_id] = v.chub_hint
+
+    console.print(table)
+
+    # ── Chub hints (one per SDK) ────────────────────────────────────
+    if seen_hints:
+        console.print()
+        console.print(Rule("[bold green]RECOMMENDED FIXES[/bold green]", style="green"))
+        console.print()
+        for doc_id, hint_code in seen_hints.items():
+            hint_panel = Syntax(hint_code, "python", theme="monokai", line_numbers=False, word_wrap=True)
+            console.print(Panel(
+                hint_panel,
+                title=f"[bold green]✦ {doc_id}[/bold green]",
+                subtitle=f"[dim]chub get {doc_id} --lang python[/dim]",
+                border_style="green",
+                padding=(1, 2),
+            ))
+
+    # ── Footer ──────────────────────────────────────────────────────
+    console.print()
+    console.print(Panel(
+        "[bold]Commit blocked.[/bold] Fix the issues listed above and re-commit.\n"
+        "[dim]To suppress a false positive, add[/dim]  [cyan]# noqa: UP<code>[/cyan]  [dim]to the line.[/dim]",
+        border_style="red",
+        padding=(0, 2),
+    ))
+    console.print()
+
+    # ── Generate markdown report (append to history) ──────────────────
+    report_path = REPO_ROOT / "chub_guard_report.md"
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Build this run's section
+    run_lines = [
+        f"## 🕐 Run: {timestamp}",
+        "",
+        f"**{len(violations)}** issue{'s' if len(violations) != 1 else ''} found across **{len(file_counts)}** file{'s' if len(file_counts) != 1 else ''}.",
+        "",
+        "### Issues",
+        "",
+        "| # | File | Line | Code | Issue |",
+        "|---|------|------|------|-------|",
+    ]
+    for idx, v in enumerate(violations, 1):
+        issue_text = v.message
+        if v.doc_id:
+            issue_text += f" *[{v.doc_id}]*"
+        issue_text = issue_text.replace("|", "\\|")
+        fname = str(v.filename).replace("\\", "/")
+        run_lines.append(f"| {idx} | `{fname}` | {v.line} | `{v.code}` | {issue_text} |")
+
+    if seen_hints:
+        run_lines += [
+            "",
+            "### Recommended Fixes",
+        ]
+        for doc_id, hint_code in seen_hints.items():
+            run_lines += [
+                "",
+                f"#### ✦ `{doc_id}`",
+                "",
+                "```python",
+                hint_code,
+                "```",
+                "",
+                f"> Full docs: `chub get {doc_id} --lang python`",
+            ]
+
+    run_lines += [
+        "",
+        "*To suppress a false positive, add `# noqa: UP<code>` to the line.*",
+        "",
+        "---",
+        "",
+    ]
+
+    run_section = "\n".join(run_lines)
+
+    # Read existing report — extract previous run summary for compact history log
+    REPORT_TITLE = "# 🛡️ Chub Guard Report\n\n"
+    HISTORY_HEADER = "## Previous Runs\n\n"
+    try:
+        past_entries = []
+        if report_path.exists():
+            existing = report_path.read_text(encoding="utf-8")
+            # Extract the previous "latest" run's timestamp + summary as a one-liner
+            import re
+            prev_run = re.search(r"## 🕐 Run: (.+)\n\n\*\*(\d+)\*\* issue.*?across \*\*(\d+)\*\* file", existing)
+            if prev_run:
+                past_entries.append(f"- `{prev_run.group(1)}` — {prev_run.group(2)} issue(s) across {prev_run.group(3)} file(s)")
+            # Carry forward any existing history entries
+            history_match = re.search(r"## Previous Runs\n\n((?:- .+\n)*)", existing)
+            if history_match:
+                past_entries.extend(history_match.group(1).strip().splitlines())
+
+        # Build the full report: title + latest run details + compact history
+        full_report = REPORT_TITLE + run_section
+        if past_entries:
+            full_report += HISTORY_HEADER + "\n".join(past_entries) + "\n"
+
+        report_path.write_text(full_report, encoding="utf-8")
+        console.print(f"[dim]📄 Report updated → {report_path.relative_to(REPO_ROOT)}[/dim]")
+    except Exception as e:
+        console.print(f"[yellow]⚠ Could not write report: {e}[/yellow]")
+
     sys.exit(1)
 
 
