@@ -1,0 +1,133 @@
+{
+  "gemini/genai": {
+    "patterns": [
+      "gemini-1.5-pro",
+      "from google.generativeai import types",
+      "from google.api_core.exceptions import GoogleAPIError",
+      "response.text",
+      "import google.generativeai",
+      "model.generate_content",
+      "gemini-1.5-flash",
+      "genai.configure(api_key=)",
+      "from google.ai import generativelanguage_v1",
+      "genai.GenerationConfig",
+      "response = model.generate_content(, stream=True)",
+      "from google.generativeai"
+    ],
+    "last_updated": "2026-04-23"
+  },
+  "openai/package": {
+    "patterns": [
+      "openai.ChatCompletion.create"
+    ],
+    "last_updated": "2026-04-23"
+  },
+  "rich/package": {
+    "patterns": [
+      "rich.print",
+      "console.print(text, markup=False)"
+    ],
+    "last_updated": "2026-04-23"
+  },
+  "langchain/package": {
+    "patterns": [
+      "1.2.11"
+    ],
+    "last_updated": "2026-04-23"
+  },
+  "pytest/package": {
+    "patterns": [
+      "[tool.pytest.ini_options]",
+      "pyproject.toml",
+      "pytest.toml",
+      "[tool.pytest]",
+      "pytest.ini",
+      "conftest.py"
+    ],
+    "last_updated": "2026-04-23"
+  },
+  "click/package": {
+    "patterns": [
+      "8.2.0",
+      "importlib.metadata.version(\"click\")",
+      "click.parser",
+      "click.__version__"
+    ],
+    "last_updated": "2026-04-23"
+  },
+  "anthropic/package": {
+    "patterns": [
+      "client.beta",
+      "message.content"
+    ],
+    "last_updated": "2026-04-23"
+  },
+  "react/react": {
+    "patterns": [
+      "import React from \"react\""
+    ],
+    "last_updated": "2026-04-23"
+  },
+  "sqlalchemy/package": {
+    "patterns": [
+      "Session.execute",
+      "engine.execute",
+      "2.1.0b1",
+      "create_engine(, future=True)",
+      "2.0.48",
+      "Session.scalars"
+    ],
+    "last_updated": "2026-04-23"
+  },
+  "alembic/package": {
+    "patterns": [
+      "pyproject",
+      "alembic.ini",
+      "alembic/versions/",
+      "ALTER TABLE",
+      "alembic/script.py.mako",
+      "pyproject.toml",
+      "async",
+      "1.15.0",
+      "alembic/env.py",
+      "multidb",
+      "alembic init",
+      "generic"
+    ],
+    "last_updated": "2026-04-23"
+  },
+  "torch/package": {
+    "patterns": [
+      "v2.9.1",
+      "2.10.0",
+      "Stable (2.7.0)"
+    ],
+    "last_updated": "2026-04-23"
+  },
+  "accelerate/package": {
+    "patterns": [
+      ".to(device)",
+      "loss.backward",
+      "accelerate launch",
+      "if __name__ == \"__main__\":"
+    ],
+    "last_updated": "2026-04-23"
+  },
+  "albumentations/package": {
+    "patterns": [
+      "2.0.0"
+    ],
+    "last_updated": "2026-04-23"
+  },
+  "aiohttp/package": {
+    "patterns": [
+      "resp.content",
+      "web.Application",
+      "resp.text",
+      "resp.json",
+      "aiohttp 4.0",
+      "resp.read"
+    ],
+    "last_updated": "2026-04-23"
+  }
+}
