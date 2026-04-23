@@ -1,0 +1,43 @@
+{
+  "gemini/genai": {
+    "patterns": [
+      "import google.generativeai",
+      "from google.generativeai",
+      "google.generativeai"
+    ],
+    "last_updated": "2026-04-01"
+  },
+  "openai/package": {
+    "patterns": [
+      "openai.ChatCompletion.create",
+      "openai.Completion.create",
+      "client.chat.completions.create",
+      "ChatCompletion",
+      "text-davinci-003",
+      "gpt-3.5-turbo-instruct"
+    ],
+    "last_updated": "2026-04-01"
+  },
+  "anthropic/package": {
+    "patterns": [
+      "Anthropic().completions.create",
+      "client.completions.create",
+      "HUMAN_PROMPT",
+      "AI_PROMPT",
+      "claude-2",
+      "claude-instant"
+    ],
+    "last_updated": "2026-04-01"
+  },
+  "langchain/package": {
+    "patterns": [
+      "from langchain.chat_models import ChatOpenAI",
+      "from langchain.llms import OpenAI",
+      "LLMChain",
+      "SequentialChain",
+      "HuggingFaceHub",
+      "langchain.chat_models"
+    ],
+    "last_updated": "2026-04-01"
+  }
+}
