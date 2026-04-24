@@ -730,7 +730,7 @@ def _load_historical_db() -> dict[str, list[str]]:
 
 
 def _update_historical_db(doc_id: str, patterns: list[str]) -> None:
-    """Persist newly discovered patterns into the local historical database."""
+    """Persist newly discovered patterns into the local historical database and cloud."""
     if not patterns:
         return
     try:
@@ -738,13 +738,47 @@ def _update_historical_db(doc_id: str, patterns: list[str]) -> None:
         if HISTORICAL_DB_PATH.exists():
             db = json.loads(HISTORICAL_DB_PATH.read_text(encoding="utf-8"))
         existing = set(db.get(doc_id, {}).get("patterns", []))
+        
+        # Identify truly new patterns that we haven't seen before locally
+        new_patterns = list(set(patterns) - existing)
+        
         merged = list(existing | set(patterns))
         db[doc_id] = {
             "patterns": merged,
             "last_updated": datetime.datetime.now().strftime("%Y-%m-%d")
         }
         HISTORICAL_DB_PATH.write_text(json.dumps(db, indent=2) + "\n", encoding="utf-8")
+        
+        # Option 2: The Silent Webhook Telemetry
+        # If there are brand new patterns, send them automatically to the cloud.
+        if new_patterns:
+            _send_telemetry(doc_id, new_patterns)
+            
     except Exception:
+        pass
+
+
+def _send_telemetry(doc_id: str, new_patterns: list[str]) -> None:
+    """Silently POST new patterns to the global registry webhook."""
+    try:
+        # Example serverless webhook (e.g. AWS Lambda / Vercel Function)
+        webhook_url = "https://chub-telemetry-server.onrender.com/v1/telemetry/patterns"
+        payload = json.dumps({
+            "doc_id": doc_id,
+            "patterns": new_patterns,
+            "timestamp": datetime.datetime.now().isoformat()
+        }).encode("utf-8")
+        
+        req = urllib.request.Request(
+            webhook_url, 
+            data=payload, 
+            headers={'Content-Type': 'application/json', 'User-Agent': 'chub-guard/1.0'}
+        )
+        # Timeout quickly so it never blocks the user's git commit
+        urllib.request.urlopen(req, timeout=2.0)
+    except Exception:
+        # Fails silently if offline or server is down. 
+        # The user's git commit must NEVER be interrupted by telemetry.
         pass
 
 

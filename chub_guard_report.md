@@ -1,58 +1,90 @@
 # 🛡️ Chub Guard Report
 
-## 🕐 Run: 2026-04-24 06:54:30
+## 🕐 Run: 2026-04-24 10:08:18
 
-**4** issues found across **1** file.
+**7** issues found across **1** file.
 
-*Trend: ↓ 3 fewer than last run*
+*Trend: ↑ 3 more than last run*
 
 ### ✦ AI SDK Deprecations
 
 | # | File | Line | Severity | Issue |
 |---|------|------|----------|-------|
-| 1 | `tests/test_py_gaps.py` | 2 | 🔴 Breaking | `google.generativeai` is flagged as deprecated or incorrect by chub docs. *[gemini/genai]* |
-| 2 | `tests/test_py_gaps.py` | 6 | 🔴 Breaking | `ChatCompletion` is flagged as deprecated or incorrect by chub docs. *[openai/package]* |
-| 3 | `tests/test_py_gaps.py` | 8 | 🔴 Breaking | `ChatCompletion` is flagged as deprecated or incorrect by chub docs. *[openai/package]* |
-| 4 | `tests/test_py_gaps.py` | 9 | 🔴 Breaking | `ChatCompletion` is flagged as deprecated or incorrect by chub docs. *[openai/package]* |
+| 1 | `tests/test_registry_py.py` | 7 | 🔴 Breaking | Argument `fp16=True` is deprecated in `Accelerator`. Use `mixed_precision='fp16'` instead. *[accelerate/package]* |
+| 2 | `tests/test_registry_py.py` | 31 | 🔵 Info | aiohttp.ClientSession() should be used with `async with` to ensure proper connection pooling and cleanup. *[aiohttp/package]* |
+| 3 | `tests/test_registry_py.py` | 28 | 🔴 Breaking | `async` is flagged as deprecated or incorrect by chub docs. *[alembic/package]* |
+| 4 | `tests/test_registry_py.py` | 30 | 🔴 Breaking | `async` is flagged as deprecated or incorrect by chub docs. *[alembic/package]* |
+| 5 | `tests/test_registry_py.py` | 31 | 🔴 Breaking | `async` is flagged as deprecated or incorrect by chub docs. *[alembic/package]* |
+| 6 | `tests/test_registry_py.py` | 33 | 🔴 Breaking | `resp.text` is flagged as deprecated or incorrect by chub docs. *[aiohttp/package]* |
+| 7 | `tests/test_registry_py.py` | 37 | 🔴 Breaking | `async` is flagged as deprecated or incorrect by chub docs. *[alembic/package]* |
 
 
 ### Recommended Fixes
 
-#### ✦ `gemini/genai`
+#### ✦ `accelerate/package`
 
 ```python
-from google import genai
+import torch
+from torch import nn
+from torch.utils.data import DataLoader, TensorDataset
+from accelerate import Accelerator
 
-client = genai.Client()
+def main() -> None:
+    accelerator = Accelerator()
 
-response = client.models.generate_content(
-  model='gemini-2.5-flash',
-  contents='why is the sky blue?',
-)
+    model = nn.Sequential(nn.Linear(16, 32), nn.ReLU(), nn.Linear(32, 2))
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
 
-print(response.text) # output is often markdown
+    x = torch.randn(128, 16)
+    y = torch.randint(0, 2, (128,))
+    dataloader = DataLoader(TensorDataset(x, y), batch_size=8, shuffle=True)
+
+    model, optimizer, dataloader = accelerator.prepare(model, optimizer, dataloader)
+
+    model.train()
+    for batch_x, batch_y in dataloader:
+        optimizer.zero_grad()
+        logits = model(batch_x)
+        loss = nn.functional.cross_entropy(logits, batch_y)
+        accelerator.backward(loss)
+        optimizer.step()
+
+    accelerator.print("done")
+
+if __name__ == "__main__":
+    main()
 ```
 
-> Full docs: `chub get gemini/genai --lang python`
+> Full docs: `chub get accelerate/package --lang python`
 
-#### ✦ `openai/package`
+#### ✦ `aiohttp/package`
 
 ```python
-from openai import OpenAI
+import asyncio
+import aiohttp
 
-client = OpenAI()
+async def main() -> None:
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://httpbin.org/get") as resp:
+            resp.raise_for_status()
+            data = await resp.json()
+            print(resp.status, data["url"])
 
-response = client.responses.create(
-    model="gpt-4.1",
-    instructions="You are a concise coding assistant.",
-    input="How do I reverse a list in Python?",
-)
-
-print(response.output_text)
-print(response._request_id)
+asyncio.run(main())
 ```
 
-> Full docs: `chub get openai/package --lang python`
+> Full docs: `chub get aiohttp/package --lang python`
+
+#### ✦ `alembic/package`
+
+```python
+# alembic/env.py
+from myapp.db import Base
+
+target_metadata = Base.metadata
+```
+
+> Full docs: `chub get alembic/package --lang python`
 
 ### 🤖 Agent Prompt
 
@@ -69,6 +101,7 @@ Copy this into your coding agent to fix all issues:
 ---
 ## Previous Runs
 
+- `2026-04-24 06:54:30` — 4 issue(s) across 1 file(s)
 - `2026-04-24 06:44:47` — 7 issue(s) across 1 file(s)
 - `2026-04-24 06:43:49` — 4 issue(s) across 1 file(s)
 - `2026-04-24 06:22:41` — 4 issue(s) across 1 file(s)

@@ -26,6 +26,7 @@ This will:
 - Write `.chub-docs/registry.json`
 - Update `.gitignore` to ignore doc caches
 - Run `pre-commit install` automatically
+- Enable zero-intervention telemetry to sync new AI deprecations globally
 
 ## After Setup
 
@@ -39,9 +40,9 @@ Make a commit to test it:
 
 ## Suppressing False Positives
 
-Add `# noqa: UP035` to any line to skip:
+Add `# noqa: CHUB` (or `// noqa: CHUB` for JS/C/Java) to any line to skip:
 
-    import google.generativeai as genai  # noqa: UP035
+    import google.generativeai as genai  # noqa: CHUB
 
 ## Also available via npm
 

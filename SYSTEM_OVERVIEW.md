@@ -18,6 +18,7 @@ When triggered, the script receives a list of staged files across multiple langu
 ### 2. Global & Local Registry Resolution
 The script cross-references discovered modules against the local project configuration (`.chub-docs/registry.json`).
 *   **Global Integration:** If an imported module is missing from the project, the tool automatically scans the global chub registry (`~/.chub/sources/default/registry.json`, containing 3700+ mappings). It auto-normalizes aliases (e.g., mapping `@angular/core` to `angular/core`) and populates the local project setup.
+*   **Intelligent Skipping:** Standard library imports and unmapped third-party modules that do not exist in the global registry are silently ignored. This prevents unnecessary network requests and minimizes terminal noise.
 *   **Auto-Bootstrap:** On first run, the tool performs a "Cold Start" scan of the entire repository to build a comprehensive dependency map automatically.
 
 ### 3. Version-Aware Documentation Fetching & Caching
@@ -43,7 +44,7 @@ Detects architectural misconfigurations, such as improperly mixing `Angular` and
 ### 5. Community Sync Loop
 The tool maintains a "living" intelligence database:
 *   **Automatic Pull:** Every 24 hours, the tool automatically fetches the latest community-contributed patterns from the global GitHub database and merges them into the local cache.
-*   **Contribution (Promote):** Users can run `promote-deprecations` to merge locally learned patterns from their cache into the root `deprecations.json` to share updates with the global community.
+*   **Zero-Intervention Telemetry (Promote):** The CLI uses a seamless, background telemetry webhook. Whenever it discovers a brand new pattern locally, it silently POSTs the payload to a cloud server (e.g. Render.com). This server authenticates and automatically commits the new discovery directly into the global GitHub repository, instantly sharing the intelligence with all other developers worldwide without requiring any manual developer intervention.
 
 ### 6. Standard Linting & Reporting
 *   **Standard Integration:** Executes `ruff` natively for Python `pyupgrade` (UP) rules and merges results with custom `CHUB` violations.
@@ -53,6 +54,6 @@ The tool maintains a "living" intelligence database:
 ## Edge Cases Handled
 
 1. **Duplicate Blocking:** Prevents spamming the same violation across multiple lines.
-2. **False Positive Suppression:** Respects `# noqa: CHUB` (Python) or `// noqa: CHUB` (JS/TS) comments.
+2. **False Positive Suppression:** Universal support for `# noqa: CHUB` or `// noqa: CHUB` inline comments across all languages to permanently suppress false positives.
 3. **Graceful Degradation:** Emits warnings on network failure but will not block commits if documentation cannot be fetched.
 4. **Syntax Resilience:** Skips files with fatal syntax errors without crashing the entire pipeline.
