@@ -1,19 +1,58 @@
 # 🛡️ Chub Guard Report
 
-## 🕐 Run: 2026-04-23 09:38:40
+## 🕐 Run: 2026-04-24 06:54:30
 
-**3** issues found across **1** file.
+**4** issues found across **1** file.
 
-*Trend: ↑ 1 more than last run*
+*Trend: ↓ 3 fewer than last run*
 
-### 🟨 JS/TS Deprecations (Chub)
+### ✦ AI SDK Deprecations
 
 | # | File | Line | Severity | Issue |
 |---|------|------|----------|-------|
-| 1 | `tests/test_registry_react.js` | 2 | 🔴 Breaking | `React` is deprecated (from pattern: `import React from "react"`). See chub docs. *[react/react]* |
-| 2 | `tests/test_registry_react.js` | 19 | 🔴 Breaking | `import React from "react"` is flagged as deprecated by chub docs. *[react/react]* |
-| 3 | `tests/test_registry_react.js` | 22 | 🔴 Breaking | `React` is deprecated (from pattern: `import React from "react"`). See chub docs. *[react/react]* |
+| 1 | `tests/test_py_gaps.py` | 2 | 🔴 Breaking | `google.generativeai` is flagged as deprecated or incorrect by chub docs. *[gemini/genai]* |
+| 2 | `tests/test_py_gaps.py` | 6 | 🔴 Breaking | `ChatCompletion` is flagged as deprecated or incorrect by chub docs. *[openai/package]* |
+| 3 | `tests/test_py_gaps.py` | 8 | 🔴 Breaking | `ChatCompletion` is flagged as deprecated or incorrect by chub docs. *[openai/package]* |
+| 4 | `tests/test_py_gaps.py` | 9 | 🔴 Breaking | `ChatCompletion` is flagged as deprecated or incorrect by chub docs. *[openai/package]* |
 
+
+### Recommended Fixes
+
+#### ✦ `gemini/genai`
+
+```python
+from google import genai
+
+client = genai.Client()
+
+response = client.models.generate_content(
+  model='gemini-2.5-flash',
+  contents='why is the sky blue?',
+)
+
+print(response.text) # output is often markdown
+```
+
+> Full docs: `chub get gemini/genai --lang python`
+
+#### ✦ `openai/package`
+
+```python
+from openai import OpenAI
+
+client = OpenAI()
+
+response = client.responses.create(
+    model="gpt-4.1",
+    instructions="You are a concise coding assistant.",
+    input="How do I reverse a list in Python?",
+)
+
+print(response.output_text)
+print(response._request_id)
+```
+
+> Full docs: `chub get openai/package --lang python`
 
 ### 🤖 Agent Prompt
 
@@ -30,6 +69,15 @@ Copy this into your coding agent to fix all issues:
 ---
 ## Previous Runs
 
+- `2026-04-24 06:44:47` — 7 issue(s) across 1 file(s)
+- `2026-04-24 06:43:49` — 4 issue(s) across 1 file(s)
+- `2026-04-24 06:22:41` — 4 issue(s) across 1 file(s)
+- `2026-04-24 06:22:12` — 4 issue(s) across 1 file(s)
+- `2026-04-24 06:13:11` — 3 issue(s) across 1 file(s)
+- `2026-04-24 06:10:58` — 7 issue(s) across 1 file(s)
+- `2026-04-24 06:04:26` — 2 issue(s) across 1 file(s)
+- `2026-04-24 06:02:49` — 2 issue(s) across 1 file(s)
+- `2026-04-23 09:38:40` — 3 issue(s) across 1 file(s)
 - `2026-04-23 09:37:12` — 2 issue(s) across 1 file(s)
 - `2026-04-23 09:35:02` — 5 issue(s) across 1 file(s)
 - `2026-04-23 09:08:48` — 2 issue(s) across 1 file(s)
