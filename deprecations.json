@@ -51,107 +51,12 @@
       "from langchain.llms import OpenAI",
       "langchain.chat_models"
     ],
-    "last_updated": "2026-04-24"
+    "last_updated": "2026-04-01"
   },
-  "rich/package": {
+  "test-doc-id": {
     "patterns": [
-      "console.print(text, markup=False)",
-      "rich.print"
+      "test_deprecated_pattern()"
     ],
-    "last_updated": "2026-04-24"
-  },
-  "pytest/package": {
-    "patterns": [
-      "[tool.pytest.ini_options]",
-      "[tool.pytest]",
-      "conftest.py",
-      "pyproject.toml",
-      "pytest.ini",
-      "pytest.toml"
-    ],
-    "last_updated": "2026-04-24"
-  },
-  "click/package": {
-    "patterns": [
-      "8.2.0",
-      "click.__version__",
-      "click.parser",
-      "importlib.metadata.version(\"click\")"
-    ],
-    "last_updated": "2026-04-24"
-  },
-  "react/react": {
-    "patterns": [
-      "import React from \"react\""
-    ],
-    "last_updated": "2026-04-24"
-  },
-  "sqlalchemy/package": {
-    "patterns": [
-      "2.0.48",
-      "2.1.0b1",
-      "Session.execute",
-      "Session.scalars",
-      "create_engine(, future=True)",
-      "engine.execute"
-    ],
-    "last_updated": "2026-04-24"
-  },
-  "alembic/package": {
-    "patterns": [
-      "1.15.0",
-      "ALTER TABLE",
-      "alembic init",
-      "alembic.ini",
-      "alembic/env.py",
-      "alembic/script.py.mako",
-      "alembic/versions/",
-      "async",
-      "generic",
-      "multidb",
-      "pyproject",
-      "pyproject.toml"
-    ],
-    "last_updated": "2026-04-24"
-  },
-  "torch/package": {
-    "patterns": [
-      "2.10.0",
-      "Stable (2.7.0)",
-      "v2.9.1"
-    ],
-    "last_updated": "2026-04-24"
-  },
-  "accelerate/package": {
-    "patterns": [
-      ".to(device)",
-      "accelerate launch",
-      "if __name__ == \"__main__\":",
-      "loss.backward"
-    ],
-    "last_updated": "2026-04-24"
-  },
-  "albumentations/package": {
-    "patterns": [
-      "2.0.0"
-    ],
-    "last_updated": "2026-04-24"
-  },
-  "aiohttp/package": {
-    "patterns": [
-      "aiohttp 4.0",
-      "resp.content",
-      "resp.json",
-      "resp.read",
-      "resp.text",
-      "web.Application"
-    ],
-    "last_updated": "2026-04-24"
-  },
-  "angular/core": {
-    "patterns": [
-      ".update"
-    ],
-    "last_updated": "2026-04-24"
+    "last_updated": "2026-04-24T10:00:00"
   }
 }
