@@ -20,6 +20,13 @@ npx chub-guard-init
 pipx run chub-guard-init
 ```
 
+**Run on demand (entire project):**
+```bash
+npx chub-guard-init run-all
+# or
+pipx run chub-guard-init run-all
+```
+
 This will automatically:
 * ✅ Copy the guard script and configuration.
 * ✅ Install the `pre-commit` hook (handles Python path issues automatically).

@@ -5,7 +5,7 @@ repos:
         name: chub deprecation guard
         entry: python scripts/chub_guard.py run
         language: python
-        types: [python]
+        types_or: [python, javascript, ts, jsx, tsx]
         pass_filenames: true
         stages: [pre-commit]
         additional_dependencies:
