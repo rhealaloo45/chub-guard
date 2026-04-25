@@ -444,9 +444,48 @@ def analyze_js_file(f: Path, registry: dict, dynamic_patterns: dict) -> list[dic
 
     # Find which doc_ids are relevant for this file
     relevant_doc_ids = set()
+    
+    # 1. Dynamic patterns from chub docs
     for mod in js_imports:
         if mod in registry:
             relevant_doc_ids.add(registry[mod])
+
+    for doc_id in relevant_doc_ids:
+        if doc_id in dynamic_patterns:
+            for pattern in dynamic_patterns[doc_id]:
+                for line_idx, line in enumerate(lines):
+                    if pattern in line:
+                        if any(kw in line for kw in ["// noqa: UP", "// noqa: CHUB", "/* noqa: CHUB */"]):
+                            continue
+                        violations.append({
+                            "filename": str(f),
+                            "location": {"row": line_idx + 1, "column": line.find(pattern) + 1},
+                            "code": "CHUB",
+                            "message": f"`{pattern}` is flagged as deprecated or incorrect by chub docs.",
+                            "_synth_mod": next((k for k, v in registry.items() if v == doc_id), doc_id.split("/")[0])
+                        })
+
+    # 2. JS Quality & Best Practices (The "WOW" Factor)
+    JS_QUALITY_RULES = [
+        (r'\bvar\s+\w+', "Legacy `var` detected. Use `let` or `const` for modern block-scoping.", "javascript/base"),
+        (r"require\(['\"]request['\"]\)", "The `request` library is deprecated. Use `axios`, `node-fetch`, or native `fetch`.", "request/package"),
+        (r"\.writeFileSync\(", "Blocking synchronous IO detected. Use `fs.promises.writeFile` or `fs.writeFile` to keep the event loop responsive.", "nodejs/fs"),
+        (r"\.readFileSync\(", "Blocking synchronous IO detected. Use `fs.promises.readFile` for better performance.", "nodejs/fs"),
+    ]
+    
+    for pattern, msg, mod_hint in JS_QUALITY_RULES:
+        for line_idx, line in enumerate(lines):
+            if any(kw in line for kw in ["// noqa", "/* noqa"]):
+                continue
+            match = re.search(pattern, line)
+            if match:
+                violations.append({
+                    "filename": str(f),
+                    "location": {"row": line_idx + 1, "column": match.start() + 1},
+                    "code": "CHUB",
+                    "message": msg,
+                    "_synth_mod": mod_hint
+                })
 
     # Build a set of deprecated component names from all relevant patterns
     # e.g. "openai.ChatCompletion.create" → {"ChatCompletion", "create"}
@@ -917,10 +956,18 @@ def run(filenames):
 
     # De-duplicate and filter out ignored directories
     final_files = []
+    ignored_patterns = {"node_modules", "venv", ".venv", "env", ".env", "__pycache__", "dist", "build", ".git", ".github", ".chub-docs"}
+    
     for f in set(all_files):
-        parts = f.relative_to(REPO_ROOT).parts if f.is_relative_to(REPO_ROOT) else f.parts
-        if any(p.startswith(".") or p in ("node_modules", "venv", ".venv", "__pycache__", "dist", "build") for p in parts):
+        # Check if any part of the path is in ignored_patterns or starts with a dot (except current dir '.')
+        try:
+            rel_parts = f.resolve().relative_to(REPO_ROOT.resolve()).parts
+        except ValueError:
+            rel_parts = f.parts
+            
+        if any(p in ignored_patterns or (p.startswith(".") and p != ".") for p in rel_parts):
             continue
+            
         if f.is_file():
             final_files.append(f)
 
@@ -1305,7 +1352,10 @@ def run(filenames):
         violations.append(v)
 
     if not violations:
-        console.print("[green]✓ No deprecated API calls detected[/green]")
+        # Be silent if running as a pre-commit hook (filenames provided)
+        # to match standard linter behavior.
+        if not filenames:
+            console.print("[green]✓ No deprecated API calls detected[/green]")
         sys.exit(0)
 
     ai_violations = [v for v in violations if v.code == "CHUB" and Path(str(v.filename)).suffix == ".py"]
@@ -1615,9 +1665,21 @@ def run(filenames):
         for doc_id, hint_code in seen_hints.items():
             # Detect hint language for correct fence
             _fence_lang = "python"
-            if hint_code and any(kw in hint_code for kw in ["require(", "const ", "let ", "=> "]):
-                if not any(kw in hint_code for kw in ["def ", "class ", "import ast", "    return"]):
+            if hint_code:
+                # Check for JS keywords
+                js_kws = ["require(", "const ", "let ", "=> ", "async function", "await fetch", "npm install"]
+                py_kws = ["def ", "class ", "import ast", "    return", "pip install"]
+                
+                js_score = sum(1 for kw in js_kws if kw in hint_code)
+                py_score = sum(1 for kw in py_kws if kw in hint_code)
+                
+                # If it's a JS/TS file, favor JS
+                if any(str(v.filename).endswith(tuple(NON_PY_EXTENSIONS)) for v in violations if v.doc_id == doc_id):
+                    js_score += 2
+                
+                if js_score > py_score:
                     _fence_lang = "javascript"
+
             run_lines += [
                 "",
                 f"#### ✦ `{doc_id}`",

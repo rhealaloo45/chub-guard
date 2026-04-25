@@ -22,13 +22,24 @@ function getPreCommitCommand() {
     execSync('pre-commit --version', { stdio: 'ignore' });
     return 'pre-commit';
   } catch {}
+  const py = getPythonCommand();
+  if (py) {
+    try {
+      execSync(`${py} -m pre_commit --version`, { stdio: 'ignore' });
+      return `${py} -m pre_commit`;
+    } catch {}
+  }
+  return null;
+}
+
+function getPythonCommand() {
   try {
-    execSync('python3 -m pre_commit --version', { stdio: 'ignore' });
-    return 'python3 -m pre_commit';
+    execSync('python3 --version', { stdio: 'ignore' });
+    return 'python3';
   } catch {}
   try {
-    execSync('python -m pre_commit --version', { stdio: 'ignore' });
-    return 'python -m pre_commit';
+    execSync('python --version', { stdio: 'ignore' });
+    return 'python';
   } catch {}
   return null;
 }
@@ -125,7 +136,8 @@ if (args[0] === 'run-all') {
   console.log('  a detailed markdown report in your root directory.');
   console.log('');
   try {
-    execSync(`python ${guardPath} run`, { stdio: 'inherit' });
+    const py = getPythonCommand() || 'python';
+    execSync(`${py} ${guardPath} run`, { stdio: 'inherit' });
     process.exit(0);
   } catch (err) {
     process.exit(1);
