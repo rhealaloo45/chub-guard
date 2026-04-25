@@ -57,24 +57,23 @@ def safe_write(file_path: Path, content: str, label: str) -> None:
 
 
 def install_chub() -> None:
-    print("📦 Checking for @aisuite/chub documentation engine...")
+    print("📦 Checking for @aisuite/chub documentation engine (optional)...")
     if shutil.which("chub"):
         print("✓ @aisuite/chub is already installed")
         return
 
     npm_path = shutil.which("npm")
     if not npm_path:
-        print("⚠ npm not found. Please install Node.js/npm to use @aisuite/chub.")
+        print("💡 Note: npm not found. Skipping @aisuite/chub installation.")
+        print("   (Don't worry: the linter will automatically fetch docs from GitHub if needed)")
         return
 
-    print("  Installing @aisuite/chub globally...")
+    print("  Installing @aisuite/chub globally for better performance...")
     try:
-        # Use shell=True for npm on Windows
         subprocess.run(["npm", "install", "-g", "@aisuite/chub"], check=True, shell=True)
         print("✓ @aisuite/chub installed successfully")
     except subprocess.CalledProcessError:
-        print("⚠ Failed to install @aisuite/chub automatically.")
-        print("  Please run manually: npm install -g @aisuite/chub")
+        print("💡 Note: Failed to install @aisuite/chub automatically. Using GitHub fallback instead.")
 
 def main() -> None:
     args = sys.argv[1:]

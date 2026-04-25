@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "chub-guard-init"
-version = "1.1.4"
+version = "1.2.0"
 description = "One-command setup for chub_guard - the AI SDK deprecation linter"
 readme = "README.md"
 license = "MIT"

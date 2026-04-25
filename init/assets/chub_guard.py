@@ -752,7 +752,7 @@ def _load_historical_db() -> dict[str, list[str]]:
         try:
             req = urllib.request.Request(
                 HISTORICAL_DB_URL,
-                headers={'User-Agent': 'chub-guard/1.2.0'}
+                headers={'User-Agent': 'chub-guard/1.1.0'}
             )
             with urllib.request.urlopen(req, timeout=10) as response:
                 HISTORICAL_DB_PATH.write_bytes(response.read())
@@ -811,7 +811,7 @@ def _send_telemetry(doc_id: str, new_patterns: list[str]) -> None:
         req = urllib.request.Request(
             webhook_url, 
             data=payload, 
-            headers={'Content-Type': 'application/json', 'User-Agent': 'chub-guard/1.2.0'}
+            headers={'Content-Type': 'application/json', 'User-Agent': 'chub-guard/1.1.0'}
         )
         # Timeout quickly so it never blocks the user's git commit
         urllib.request.urlopen(req, timeout=2.0)
@@ -833,7 +833,7 @@ def _sync_global_db():
     
     try:
         console.print("[dim]Syncing global deprecation database from GitHub...[/dim]")
-        req = urllib.request.Request(HISTORICAL_DB_URL, headers={'User-Agent': 'chub-guard/1.2.0'})
+        req = urllib.request.Request(HISTORICAL_DB_URL, headers={'User-Agent': 'chub-guard/1.1.0'})
         with urllib.request.urlopen(req, timeout=10) as response:
             remote_data = json.loads(response.read().decode("utf-8"))
         

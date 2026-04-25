@@ -27,13 +27,19 @@ For matched SDKs, the tool attempts to fetch the latest Markdown documentation v
 *   **Dynamic Language Selection:** The tool dynamically queries the registry for supported documentation languages. It will attempt primary matches (e.g., `javascript` for `.js` files) but automatically falls back to secondary options like `typescript` if the primary documentation is missing.
 *   **Cache & Fallback:** Fetched documents are cached for 24 hours. If `chub` is unavailable, it attempts a language-aware fallback request to raw GitHub URLs.
 
-### 4. Advanced Hybrid Analysis
-The analysis system combines high-performance pattern matching with structural code understanding:
+### 4. Advanced Hybrid Analysis (The Resilient Engine)
+The analysis system combines structural code understanding with high-performance, syntax-agnostic pattern matching to ensure coverage even in legacy or broken files:
 
-**A. Advanced AST Analysis (Python):**
-To handle "Deep Context" smells, the tool implements a structural `ast.NodeVisitor`:
+**A. Structural AST Analysis (Python):**
+Used for high-confidence structural checks when code is syntactically valid:
 *   **Context Management:** Detects if `aiohttp.ClientSession()` is used outside of an `async with` block.
-*   **Argument Logic:** Discerning deprecated keyword arguments (e.g., flagging `Accelerator(fp16=True)` but allowing `mixed_precision='fp16'`).
+*   **Argument Logic:** Discerning deprecated keyword arguments (e.g., flagging `Accelerator(fp16=True)`).
+
+**B. Resilient Regex Fallback (The Safety Net):**
+If a file has syntax errors (e.g., Python 2 `print` statements or missing parentheses), the tool **does not skip the file**. Instead, it executes a pure Regex Pass that catches:
+*   **Automation Deprecations**: Selenium `find_element_by_*` and Playwright `waitForSelector`.
+*   **Legacy Signatures**: Python 2 `urllib2`, `xrange`, and `except Exception, e` syntax.
+*   **Dynamic Doc Patterns**: All patterns extracted from Chub markdown docs are checked via regex, ensuring "Upgrade Guard" functionality even during heavy refactoring.
 
 **B. Dynamic Markdown Parsing:**
 The tool scans downloaded `chub` markdown for negative keywords (e.g., `"deprecated"`, `"legacy"`) and extracts backticked patterns (`ChatCompletion`) to flag in the source code.
@@ -56,4 +62,4 @@ The tool maintains a "living" intelligence database:
 1. **Duplicate Blocking:** Prevents spamming the same violation across multiple lines.
 2. **False Positive Suppression:** Universal support for `# noqa: CHUB` or `// noqa: CHUB` inline comments across all languages to permanently suppress false positives.
 3. **Graceful Degradation:** Emits warnings on network failure but will not block commits if documentation cannot be fetched.
-4. **Syntax Resilience:** Skips files with fatal syntax errors without crashing the entire pipeline.
+4. **Syntax Resilience:** Unlike standard linters, the hybrid engine falls back to a Regex-only scan for files with syntax errors. This ensures that a legacy Python 2 file or a broken Selenium script still gets flagged for deprecations without crashing the pipeline.

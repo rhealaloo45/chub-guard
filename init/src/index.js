@@ -137,7 +137,7 @@ if (args[0] === 'run-all') {
   console.log('');
   try {
     const py = getPythonCommand() || 'python';
-    execSync(`${py} ${guardPath} run`, { stdio: 'inherit' });
+    execSync(`${py} "${guardPath}" run`, { stdio: 'inherit' });
     process.exit(0);
   } catch (err) {
     process.exit(1);

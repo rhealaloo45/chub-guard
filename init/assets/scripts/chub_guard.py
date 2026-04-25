@@ -752,7 +752,7 @@ def _load_historical_db() -> dict[str, list[str]]:
         try:
             req = urllib.request.Request(
                 HISTORICAL_DB_URL,
-                headers={'User-Agent': 'chub-guard/1.1.0'}
+                headers={'User-Agent': 'chub-guard/1.2.0'}
             )
             with urllib.request.urlopen(req, timeout=10) as response:
                 HISTORICAL_DB_PATH.write_bytes(response.read())
@@ -811,7 +811,7 @@ def _send_telemetry(doc_id: str, new_patterns: list[str]) -> None:
         req = urllib.request.Request(
             webhook_url, 
             data=payload, 
-            headers={'Content-Type': 'application/json', 'User-Agent': 'chub-guard/1.1.0'}
+            headers={'Content-Type': 'application/json', 'User-Agent': 'chub-guard/1.2.0'}
         )
         # Timeout quickly so it never blocks the user's git commit
         urllib.request.urlopen(req, timeout=2.0)
@@ -833,7 +833,7 @@ def _sync_global_db():
     
     try:
         console.print("[dim]Syncing global deprecation database from GitHub...[/dim]")
-        req = urllib.request.Request(HISTORICAL_DB_URL, headers={'User-Agent': 'chub-guard/1.1.0'})
+        req = urllib.request.Request(HISTORICAL_DB_URL, headers={'User-Agent': 'chub-guard/1.2.0'})
         with urllib.request.urlopen(req, timeout=10) as response:
             remote_data = json.loads(response.read().decode("utf-8"))
         
@@ -1104,7 +1104,7 @@ def run(filenames):
     chub_cmd = shutil.which("chub")
     chub_available = chub_cmd is not None
     if not chub_available:
-        console.print("[yellow]⚠ chub unavailable — skipping doc fetch, ruff UP still runs[/yellow]")
+        console.print("[dim]Note: chub CLI not found. Using GitHub fallback for live documentation.[/dim]")
 
     # ── Version-aware doc fetching ───────────────────────────────────
     pinned = get_pinned_versions()
@@ -1156,8 +1156,8 @@ def run(filenames):
                 tried_langs.append(lang)
                 if chub_available:
                     try:
-                        pkg_name = doc_id.split("/")[0]
-                        version_args = ["--version", pinned[pkg_name]] if pkg_name in pinned else []
+                        # Always fetch the LATEST documentation to act as a proactive Upgrade Guard
+                        version_args = [] 
                         res = subprocess.run(
                             [chub_cmd, "get", doc_id, "--lang", lang, "--output", str(doc_path)] + version_args,
                             timeout=30,
@@ -1166,10 +1166,10 @@ def run(filenames):
                         )
                         if res.returncode == 0:
                             success = True
-                            # Also fetch full reference if possible
+                            # Also fetch full reference if possible (Latest)
                             full_path = DOCS_DIR / f"{safe_name}{suffix}__full.md"
                             subprocess.run(
-                                [chub_cmd, "get", doc_id, "--lang", lang, "--full", "--output", str(full_path)] + version_args,
+                                [chub_cmd, "get", doc_id, "--lang", lang, "--full", "--output", str(full_path)],
                                 timeout=45, capture_output=True, check=False
                             )
                             break
@@ -1254,17 +1254,39 @@ def run(filenames):
 
     # Synthesize CHUB violations for known deprecated AI SDK patterns
     for f in py_files:
+        content = f.read_text(encoding="utf-8", errors="replace")
+        lines = content.splitlines()
+        tree = None
+        
         try:
-            content = f.read_text(encoding="utf-8", errors="replace")
             tree = ast.parse(content)
-            lines = content.splitlines()
-        except Exception:
-            continue
+        except Exception as e:
+            # Fallback for SyntaxError (e.g. Python 2 code)
+            if isinstance(e, SyntaxError):
+                # Run Regex-based INTERNAL_QUALITY_PRESETS scan (Python 2 / Legacy)
+                INTERNAL_QUALITY_PRESETS = [
+                    (r'\bprint\s+["\']', "Legacy Python 2 `print` statement detected. Use `print()` function.", "python/base"),
+                    (r'except\s+\w+,\s+\w+:', "Legacy Python 2 `except` syntax detected. Use `except Exception as e:`.", "python/base"),
+                    (r'\burllib2\b', "`urllib2` is deprecated/removed in Python 3. Use `urllib.request` or `requests`.", "urllib2"),
+                    (r'\bxrange\b', "`xrange` is removed in Python 3. Use `range`.", "python/base"),
+                ]
+                for pattern, msg, mod in INTERNAL_QUALITY_PRESETS:
+                    for line_idx, line in enumerate(lines):
+                        match = re.search(pattern, line)
+                        if match:
+                            ruff_output.append({
+                                "filename": str(f),
+                                "location": {"row": line_idx + 1, "column": match.start() + 1},
+                                "code": "CHUB",
+                                "message": msg,
+                                "_synth_mod": mod
+                            })
 
-        # 1. Advanced AST Analysis
-        analyzer = PythonAdvancedAnalyzer(f, content, registry)
-        analyzer.visit(tree)
-        ruff_output.extend(analyzer.violations)
+        # 1. Advanced AST Analysis (Only if parse succeeded)
+        if tree:
+            analyzer = PythonAdvancedAnalyzer(f, content, registry)
+            analyzer.visit(tree)
+            ruff_output.extend(analyzer.violations)
 
         def add_synth(line, col, mod, msg):
             if line - 1 < len(lines) and any(kw in lines[line - 1] for kw in ["# noqa: UP", "# noqa: CHUB"]):
@@ -1279,16 +1301,26 @@ def run(filenames):
                     "_synth_mod": mod
                 })
 
-        # 2. Dynamic text matching against chub guidelines
+        # 2. Dynamic text matching against chub guidelines (ALWAYS RUNS)
         for line_idx, line in enumerate(lines):
             if any(kw in line for kw in ["# noqa: UP", "# noqa: CHUB"]):
                 continue
-            
             for doc_id, patterns in dynamic_patterns.items():
                 for pattern in patterns:
                     if pattern in line:
                         mod_key = next((k for k, v in registry.items() if v == doc_id), doc_id.split("/")[0])
                         add_synth(line_idx + 1, line.find(pattern) + 1, mod_key, f"`{pattern}` is flagged as deprecated or incorrect by chub docs.")
+
+        # 3. Automation Quality Presets (Safety net) (ALWAYS RUNS)
+        AUTOMATION_PRESETS = [
+            (r'\bfind_element_by_\w+', "Deprecated Selenium locator method. Use `find_element(By.ID, ...)` syntax.", "selenium"),
+            (r'\bwaitForSelector\(', "Redundant `waitForSelector` detected. Modern Playwright actions (click, fill) auto-wait.", "playwright"),
+        ]
+        for pattern, msg, mod in AUTOMATION_PRESETS:
+            for line_idx, line in enumerate(lines):
+                match = re.search(pattern, line)
+                if match:
+                    add_synth(line_idx + 1, match.start() + 1, mod, msg)
 
     # ── JS/TS analysis ───────────────────────────────────────────────
     for f in js_files:
@@ -1566,7 +1598,19 @@ def run(filenames):
         "",
         f"**{len(violations)}** issue{'s' if len(violations) != 1 else ''} found across **{len(file_counts)}** file{'s' if len(file_counts) != 1 else ''}.",
         "",
+        "### 🛡️ Upgrade Readiness",
+        "Your project was scanned against the **LATEST** documentation from Context-Hub to ensure you are aware of upcoming deprecations and migration paths.",
+        "",
+        "### 📦 Local Environment",
+        "The following versions are currently installed/pinned in your project:",
     ]
+    pinned = get_pinned_versions()
+    if pinned:
+        for pkg, ver in sorted(pinned.items()):
+            run_lines.append(f"- `{pkg}`: {ver}")
+    else:
+        run_lines.append("- (No pinned versions detected, using latest documentation)")
+    run_lines.append("")
 
     # ── Trend line ───────────────────────────────────────────────────
     prev_run_match = re.search(r"\*\*(\d+)\*\* issue.*?across \*\*(\d+)\*\* file", existing)

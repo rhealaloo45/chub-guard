@@ -16,3 +16,18 @@ This file documents the architectural changes made to `chub_guard.py` and the su
 * **Silent Webhook Integration:** Implemented a `_send_telemetry` function in `chub_guard.py` that intercepts newly discovered deprecation patterns locally and silently POSTs them to a central webhook server hosted on Render.com.
 * **Zero-Friction Global Sync:** The Render server acts as an intermediary, using a GitHub token to automatically merge and commit these new patterns into the global `rhealaloo45/chub-guard/deprecations.json` registry.
 * **Failsafe Execution:** The telemetry is wrapped in a strict 2-second timeout `try/except` block, ensuring offline developers or server outages never block the core `git commit` process.
+
+## v1.2.0: The Universal Guard
+* **Branding Shift:** Rebranded from a specialized AI SDK linter to a Universal Deprecation Guard for modern engineering projects.
+* **Expanded Scope:** Added native support for identifying "Everything" deprecations:
+    * **Browser Automation**: Selenium and Playwright pattern matching.
+    * **Legacy Python**: Python 2 syntax and deprecated stdlib module detection.
+    * **Framework Smells**: Multi-framework import conflict detection (React + Angular).
+* **Documentation Overhaul:** Updated all READMEs (Root, Pip, npm) and System Overviews to reflect the universal safety net positioning.
+* **Structural Intelligence:** Implemented a new `PythonAdvancedAnalyzer` (AST Visitor) that identifies "deep context" smells previously invisible to regex:
+    * **Async Management**: Detects `aiohttp.ClientSession` usage outside of `async with` blocks.
+    * **Keyword Arguments**: Flags deprecated arguments like `Accelerator(fp16=True)` while ignoring valid calls.
+* **Resilient Engine**: Decoupled the Regex Pass from the AST loop, ensuring Selenium and Chub-doc patterns are detected even in files with syntax errors (legacy code support).
+* **Version Sync:** Unified all components under the `1.2.0` major version tag.
+
+

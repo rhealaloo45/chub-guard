@@ -21,5 +21,9 @@
   "torch": "torch/package",
   "airtable": "airtable/database",
   "angular": "angular/core",
-  "antd": "antd/antd"
+  "antd": "antd/antd",
+  "selenium": "selenium/package",
+  "playwright": "playwright/package",
+  "urllib": "python/urllib",
+  "urllib2": "python/urllib2"
 }

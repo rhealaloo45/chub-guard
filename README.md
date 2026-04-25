@@ -1,14 +1,14 @@
-# 🛡️ chub Deprecation Guard
+# 🛡️ chub Deprecation Guard (v1.2)
 
-**Proactive AI SDK linting that catches what standard linters miss.**
+**Universal project linting that catches what standard tools miss.**
 
-`chub-guard` automatically detects, blocks, and provides migration hints for deprecated AI SDK calls (OpenAI, Gemini, Langchain, etc.) by dynamically syncing with live documentation from the `chub` registry.
+`chub-guard` is a polyglot, resilient deprecation guard that automatically detects, blocks, and provides migration hints for **everything** from AI SDKs and Browser Automation to Legacy Python patterns. It dynamically syncs with live documentation from the `chub` registry to provide the most up-to-date engineering safety net.
 
 ---
 
 ## 🚀 Quick Start (Recommended)
 
-Set up the guard in any Python project with a single command:
+Set up the guard in any Python or JS project with a single command:
 
 **Using npm:**
 ```bash
@@ -22,70 +22,49 @@ pipx run chub-guard-init
 
 **Run on demand (Project-wide scan & report):**
 ```bash
+# Get a beautiful markdown report with trend lines and AI fixes
 npx chub-guard-init run-all
-# or
-pipx run chub-guard-init run-all
 ```
 
-This generates a comprehensive **`chub_guard_report.md`** in your root directory.
+---
 
-This will automatically:
-* ✅ Copy the guard script and configuration.
-* ✅ **Auto-install** the `chub` documentation engine (no manual step required!).
-* ✅ Install the `pre-commit` hook (handles Python path issues automatically).
-* ✅ Configure your `.gitignore` to keep local doc caches out of your repo.
+## 🧠 Not Just for AI SDKs: A Universal Safety Net
+Standard linters (`ruff`, `eslint`) are great for syntax, but they can't keep up with rapidly evolving APIs and browser automation tools. `chub-guard` fills this gap by acting as a **Universal Guard** for:
+
+*   **🤖 AI SDKs**: Catches breaking changes in OpenAI, Gemini, Anthropic, Langchain, etc.
+*   **🌐 Browser Automation**: Detects deprecated Selenium (`find_element_by_id`) and Playwright (`waitForSelector`) patterns.
+*   **🐍 Legacy Code**: Identifies Python 2 syntax, legacy `urllib2`, and `xrange` in modern projects.
+*   **🏗️ Framework Smells**: Detects architectural misconfigurations, like mixing Angular and React imports in the same file.
+*   **✨ Dynamic Docs**: Automatically flags **any** pattern marked as "deprecated" or "legacy" in official documentation fetched via Context-Hub.
 
 ---
 
-## 🧠 Why you need this
-AI coding agents and LLMs frequently generate code using **deprecated SDK patterns**. These patterns pass standard linters (`ruff`, `flake8`) and type checkers (`mypy`), but cause runtime errors or technical debt.
+## ✨ Key Features
 
-**chub-guard catches:**
-- ❌ `import google.generativeai` ➔ ✅ `from google import genai`
-- ❌ `openai.ChatCompletion.create()` ➔ ✅ `client.chat.completions.create()`
-- ❌ Legacy `Anthropic().completions.create()` usage
-- ❌ New deprecations discovered dynamically from live docs.
+### 1. Hybrid Analysis (Resilient Engine)
+Unlike standard linters that fail on syntax errors, `chub-guard` uses a **Resilient Regex Engine**. It will still detect critical automation and SDK deprecations even in files with Python 2/3 conflicts or broken refactors.
 
----
+### 2. Polyglot Support
+A single tool to guard your entire polyglot stack:
+*   🐍 **Python**: Advanced AST analysis for context managers and keyword arguments.
+*   🟨 **JavaScript/TypeScript**: Support for `import`, `require`, and React/Angular scoping.
+*   ☕ **Java**: Package-level import detection.
+*   ⚙️ **C/C++**: Header-based deprecation matching.
 
-## ✨ Features
-* **Hybrid Analysis Engine**: Uses AST (Abstract Syntax Tree) for failsafe Python detection and Dynamic Markdown parsing for new deprecations from live docs.
-* **Multi-Language Support**: Scans and categorizes deprecations across Python, JavaScript/TypeScript, Java, and C/C++.
-* **Zero-Intervention Telemetry**: Automatically and silently syncs locally discovered patterns with the global GitHub repository via a background webhook. No developer action required!
-* **Smart Registry Resolution**: Silently ignores standard library and unmapped imports, minimizing noise.
-* **Rich Terminal UI**: Beautiful, color-coded error panels with exact migration code blocks extracted straight from the official docs.
-* **Smart .gitignore**: Automatically manages your project's `.gitignore` to ignore documentation caches while keeping the linter shared with the team.
-* **Zero Config CI**: Easily integrates into GitHub Actions to block breaking PRs.
+### 3. Rich Markdown Reporting
+Generates a `chub_guard_report.md` featuring:
+*   📈 **Trend Tracking**: See if your technical debt is increasing or decreasing over time.
+*   🤖 **Agent-Ready Prompts**: Copy-paste prompts designed to let your AI Assistant (Cursor/Gemini) fix all issues in one go.
+*   💡 **Embedded Fixes**: Exact code blocks for modern replacements, extracted directly from official docs.
 
----
-
-## 🛠 Manual Installation
-If you prefer not to use `npx`, follow these steps:
-
-1. **Install Prerequisites**:
-   ```bash
-   pip install pre-commit ruff rich click
-   # Note: @aisuite/chub is auto-installed by the init tool
-   ```
-2. **Add to `.pre-commit-config.yaml`**:
-   ```yaml
-   - repo: local
-     hooks:
-       - id: chub-deprecation-guard
-         name: chub deprecation guard
-         entry: python scripts/chub_guard.py run
-         language: python
-         types: [python]
-   ```
-3. **Run Install**:
-   ```bash
-   pre-commit install
-   ```
+### 4. Community-Powered Intelligence
+*   **Live Docs**: Fetches the latest migration guides from Andrew Ng's `context-hub`.
+*   **Zero-Intervention Telemetry**: Silently contributes newly discovered patterns to the global repository via a background webhook.
 
 ---
 
 ## 🔧 Maintenance
-To keep your local registry in sync with the latest AI/ML SDKs:
+To keep your local project in sync with the latest ecosystem releases:
 ```bash
 python scripts/chub_guard.py update-registry
 ```
@@ -93,7 +72,7 @@ python scripts/chub_guard.py update-registry
 ---
 
 ## 🙏 Credits
-This project is built on top of the incredible **[context-hub](https://github.com/andrewyng/context-hub)** ecosystem created by **Andrew Ng** and the DeepLearning.AI team. It uses the `chub` CLI as its primary source for real-time AI SDK documentation.
+This project is built on top of the incredible **[context-hub](https://github.com/andrewyng/context-hub)** ecosystem created by **Andrew Ng** and the DeepLearning.AI team.
 
 ---
 

@@ -1,6 +1,6 @@
 {
   "name": "chub-guard-init",
-  "version": "1.1.4",
+  "version": "1.2.0",
   "description": "One-command setup for chub_guard — the AI SDK deprecation linter",
   "type": "module",
   "main": "src/index.js",
