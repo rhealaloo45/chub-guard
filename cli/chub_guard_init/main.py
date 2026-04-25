@@ -56,6 +56,26 @@ def safe_write(file_path: Path, content: str, label: str) -> None:
         print(f"✗ Failed to write {label}: {e}")
 
 
+def install_chub() -> None:
+    print("📦 Checking for @aisuite/chub documentation engine...")
+    if shutil.which("chub"):
+        print("✓ @aisuite/chub is already installed")
+        return
+
+    npm_path = shutil.which("npm")
+    if not npm_path:
+        print("⚠ npm not found. Please install Node.js/npm to use @aisuite/chub.")
+        return
+
+    print("  Installing @aisuite/chub globally...")
+    try:
+        # Use shell=True for npm on Windows
+        subprocess.run(["npm", "install", "-g", "@aisuite/chub"], check=True, shell=True)
+        print("✓ @aisuite/chub installed successfully")
+    except subprocess.CalledProcessError:
+        print("⚠ Failed to install @aisuite/chub automatically.")
+        print("  Please run manually: npm install -g @aisuite/chub")
+
 def main() -> None:
     args = sys.argv[1:]
     if args and args[0] == "run-all":
@@ -69,8 +89,6 @@ def main() -> None:
         print("🚀 Running chub-guard on all project files...")
         print("───────────────────────────────────────")
         try:
-            # Use sys.executable to ensure we use the same python interpreter if possible, 
-            # otherwise fallback to 'python'
             py_cmd = sys.executable if sys.executable else "python"
             subprocess.run([py_cmd, str(guard_path), "run"], check=True)
             sys.exit(0)
@@ -88,16 +106,20 @@ def main() -> None:
     print("Setting up chub_guard in this project...")
     print("")
 
-    # 1. Create directories
+    # 1. Install chub engine
+    install_chub()
+    print("")
+
+    # 2. Create directories
     (cwd / "scripts").mkdir(parents=True, exist_ok=True)
     (cwd / ".chub-docs").mkdir(parents=True, exist_ok=True)
 
-    # 2. Write files
+    # 3. Write files
     safe_write(cwd / "scripts" / "chub_guard.py",      CHUB_GUARD_PY,   "scripts/chub_guard.py")
     safe_write(cwd / ".pre-commit-config.yaml",         PRE_COMMIT_YAML, ".pre-commit-config.yaml")
     safe_write(cwd / ".chub-docs" / "registry.json",   REGISTRY_JSON,   ".chub-docs/registry.json")
 
-    # 3. Update .gitignore
+    # 4. Update .gitignore
     gitignore_path = cwd / ".gitignore"
     gitignore_entry = ".chub-docs/*.md"
     if gitignore_path.exists():
@@ -111,14 +133,14 @@ def main() -> None:
 
     print("")
 
-    # 4. Check for git repo
+    # 5. Check for git repo
     if not is_git_repo(cwd):
         print("⚠ No .git directory found.")
         print("  Run git init first, then: pre-commit install")
         print("")
         sys.exit(0)
 
-    # 5. Run pre-commit install
+    # 6. Run pre-commit install
     if is_pre_commit_installed():
         try:
             subprocess.run(["pre-commit", "install"], cwd=cwd, check=True)
@@ -129,8 +151,8 @@ def main() -> None:
             print("Done! chub_guard will now run on every commit.")
             print("")
             print("Next steps:")
-            print("  1. Install chub:  npm install -g @aisuite/chub")
-            print("  2. Make a commit to test the guard")
+            print("  1. Make a commit to test the guard")
+            print("  2. Or run manually on the whole project: chub-guard-init run-all")
             print("")
         except subprocess.CalledProcessError:
             print("⚠ pre-commit install failed. Run manually: pre-commit install")
@@ -140,7 +162,6 @@ def main() -> None:
         print("  pip install pre-commit")
         print("  pre-commit install")
         print("")
-        print("Then install chub: npm install -g @aisuite/chub")
 
 
 if __name__ == "__main__":
