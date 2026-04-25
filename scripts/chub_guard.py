@@ -1,4 +1,5 @@
 import ast
+import os
 import re
 import datetime
 import json
@@ -30,7 +31,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / ".chub-docs"
 REGISTRY_PATH = DOCS_DIR / "registry.json"
 
-JS_EXTENSIONS = {".js", ".ts", ".jsx", ".tsx", ".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".hxx", ".java"}
+NON_PY_EXTENSIONS = {".js", ".ts", ".jsx", ".tsx", ".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".hxx", ".java"}
+JS_TS_EXTENSIONS = {".js", ".ts", ".jsx", ".tsx"}
+C_EXTENSIONS = {".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".hxx"}
+JAVA_EXTENSIONS = {".java"}
 
 STDLIB_MODS = {"os", "sys", "re", "json", "ast", "time", "math",
                "pathlib", "typing", "datetime", "collections",
@@ -43,7 +47,11 @@ STDLIB_MODS = {"os", "sys", "re", "json", "ast", "time", "math",
                "csv", "pickle", "pprint", "tempfile", "traceback",
                "inspect", "operator", "heapq", "bisect", "array",
                "queue", "signal", "select", "ssl", "email",
-               "html", "xml", "sqlite3", "decimal", "fractions"}
+               "html", "xml", "sqlite3", "decimal", "fractions",
+               "asyncio", "concurrent", "typing_extensions", "__future__",
+               "builtins", "gc", "weakref", "types", "dis", "cProfile",
+               "profile", "timeit", "atexit", "sysconfig", "platform",
+               "ctypes", "mmap", "readline", "rlcompleter"}
 
 # Global chub registry installed at ~/.chub/sources/default/registry.json
 CHUB_GLOBAL_REGISTRY = Path.home() / ".chub" / "sources" / "default" / "registry.json"
@@ -53,44 +61,44 @@ HISTORICAL_DB_PATH = DOCS_DIR / "historical_deprecations.json"
 HISTORICAL_DB_URL = "https://raw.githubusercontent.com/rhealaloo45/chub-guard/main/deprecations.json"
 
 
-def _load_global_chub_registry() -> dict[str, str]:
-    """Load the global chub registry and build a module-name → doc_id mapping.
+def _load_global_chub_registry() -> tuple[dict[str, str], dict[str, list[str]]]:
+    """Load the global chub registry and build lookups.
     
-    The global registry has 1500+ packages. We build a lookup dict mapping
-    common import names (e.g. 'openai', 'flask', 'anthropic') to their
-    chub doc_id (e.g. 'openai/package', 'anthropic/package').
+    Returns:
+        tuple: (module_name → doc_id, doc_id → [languages])
     """
     if not CHUB_GLOBAL_REGISTRY.exists():
-        return {}
+        return {}, {}
     try:
         data = json.loads(CHUB_GLOBAL_REGISTRY.read_text(encoding="utf-8"))
         docs = data.get("docs", [])
         lookup = {}
+        doc_langs = {}
         for doc in docs:
             doc_id = doc.get("id", "")
             if not doc_id:
                 continue
-            # Map the base package name → doc_id
-            # e.g. "openai/package" → key "openai"
-            # e.g. "langchain/core" → key "langchain" (and "langchain-core")
+            
+            # Extract supported languages
+            langs = [l.get("language") for l in doc.get("languages", []) if l.get("language")]
+            doc_langs[doc_id] = langs
+
             parts = doc_id.split("/")
             base = parts[0]  # e.g. "openai", "langchain"
             sub = parts[1] if len(parts) > 1 else ""  # e.g. "package", "core"
             
-            # Primary key: base name
             if base not in lookup:
                 lookup[base] = doc_id
-            # If sub is "package", prefer it as the primary mapping
             if sub == "package":
                 lookup[base] = doc_id
-            # Also map hyphenated variants: "langchain-core" → "langchain/core"
             if sub and sub != "package":
                 lookup[f"{base}-{sub}"] = doc_id
                 lookup[f"{base}_{sub}"] = doc_id
+                lookup[f"{base}/{sub}"] = doc_id  # Added slash for better resolution
 
-        return lookup
+        return lookup, doc_langs
     except Exception:
-        return {}
+        return {}, {}
 
 
 @dataclass
@@ -680,9 +688,12 @@ def extract_chub_hint(doc_path: Path, lang: str = "python") -> str | None:
         if result:
             return result
 
-    # Ultimate fallback: any fenced code block
-    result = _find_hint_in_content("```")
-    return result
+        # Controlled fallback: try known language fences only
+        for safe_fence in ["```python", "```javascript", "```js", "```typescript", "```ts", "```java", "```cpp", "```c"]:
+            result = _find_hint_in_content(safe_fence)
+            if result:
+                return result
+        return None
 
 
 # ── GAP 6: Historical deprecations database ─────────────────────────
@@ -719,7 +730,7 @@ def _load_historical_db() -> dict[str, list[str]]:
 
 
 def _update_historical_db(doc_id: str, patterns: list[str]) -> None:
-    """Persist newly discovered patterns into the local historical database."""
+    """Persist newly discovered patterns into the local historical database and cloud."""
     if not patterns:
         return
     try:
@@ -727,27 +738,169 @@ def _update_historical_db(doc_id: str, patterns: list[str]) -> None:
         if HISTORICAL_DB_PATH.exists():
             db = json.loads(HISTORICAL_DB_PATH.read_text(encoding="utf-8"))
         existing = set(db.get(doc_id, {}).get("patterns", []))
+        
+        # Identify truly new patterns that we haven't seen before locally
+        new_patterns = list(set(patterns) - existing)
+        
         merged = list(existing | set(patterns))
         db[doc_id] = {
             "patterns": merged,
             "last_updated": datetime.datetime.now().strftime("%Y-%m-%d")
         }
         HISTORICAL_DB_PATH.write_text(json.dumps(db, indent=2) + "\n", encoding="utf-8")
+        
+        # Option 2: The Silent Webhook Telemetry
+        # If there are brand new patterns, send them automatically to the cloud.
+        if new_patterns:
+            _send_telemetry(doc_id, new_patterns)
+            
     except Exception:
         pass
 
 
+def _send_telemetry(doc_id: str, new_patterns: list[str]) -> None:
+    """Silently POST new patterns to the global registry webhook."""
+    try:
+        # Example serverless webhook (e.g. AWS Lambda / Vercel Function)
+        webhook_url = "https://chub-telemetry-server.onrender.com/v1/telemetry/patterns"
+        payload = json.dumps({
+            "doc_id": doc_id,
+            "patterns": new_patterns,
+            "timestamp": datetime.datetime.now().isoformat()
+        }).encode("utf-8")
+        
+        req = urllib.request.Request(
+            webhook_url, 
+            data=payload, 
+            headers={'Content-Type': 'application/json', 'User-Agent': 'chub-guard/1.0'}
+        )
+        # Timeout quickly so it never blocks the user's git commit
+        urllib.request.urlopen(req, timeout=2.0)
+    except Exception:
+        # Fails silently if offline or server is down. 
+        # The user's git commit must NEVER be interrupted by telemetry.
+        pass
+
+
+def _sync_global_db():
+    """Fetch the latest global deprecations from GitHub if the local cache is > 24h old."""
+    if not HISTORICAL_DB_PATH.exists():
+        HISTORICAL_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        HISTORICAL_DB_PATH.write_text("{}", encoding="utf-8")
+    
+    mtime = HISTORICAL_DB_PATH.stat().st_mtime
+    if (time.time() - mtime) < 86400:
+        return # Recently synced
+    
+    try:
+        console.print("[dim]Syncing global deprecation database from GitHub...[/dim]")
+        req = urllib.request.Request(HISTORICAL_DB_URL, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            remote_data = json.loads(response.read().decode("utf-8"))
+        
+        local_data = json.loads(HISTORICAL_DB_PATH.read_text(encoding="utf-8"))
+        
+        # Merge remote into local
+        for doc_id, data in remote_data.items():
+            if doc_id not in local_data:
+                local_data[doc_id] = data
+            else:
+                existing = set(local_data[doc_id].get("patterns", []))
+                incoming = set(data.get("patterns", []))
+                local_data[doc_id]["patterns"] = sorted(list(existing | incoming))
+                local_data[doc_id]["last_updated"] = data.get("last_updated", local_data[doc_id]["last_updated"])
+        
+        HISTORICAL_DB_PATH.write_text(json.dumps(local_data, indent=2) + "\n", encoding="utf-8")
+        os.utime(HISTORICAL_DB_PATH, (time.time(), time.time()))
+        console.print("[green]✓ Global database synced.[/green]")
+    except Exception as e:
+        console.print(f"[dim]Note: Could not sync global database (offline or URL moved): {e}[/dim]")
+
 @click.group()
 def cli():
     pass
+
+_ADVANCED_RULES = {
+    "context_manager_required": [
+        # (call_name, message, mod_hint)
+        ("aiohttp.ClientSession", "aiohttp.ClientSession() should be used with `async with` to ensure proper connection pooling and cleanup.", "aiohttp"),
+        ("ClientSession", "aiohttp.ClientSession() should be used with `async with` to ensure proper connection pooling and cleanup.", "aiohttp"),
+    ],
+    "deprecated_kwargs": [
+        # (call_name, kwarg_name, message, mod_hint)
+        ("Accelerator", "fp16", "Argument `fp16=True` is deprecated in `Accelerator`. Use `mixed_precision='fp16'` instead.", "accelerate"),
+    ]
+}
+
+class PythonAdvancedAnalyzer(ast.NodeVisitor):
+    def __init__(self, filename, content, registry):
+        self.filename = filename
+        self.content = content
+        self.lines = content.splitlines()
+        self.registry = registry
+        self.violations = []
+        self.current_async_with = []
+
+    def visit_AsyncWith(self, node):
+        self.current_async_with.append(node)
+        self.generic_visit(node)
+        self.current_async_with.pop()
+
+    def visit_Call(self, node):
+        # Context manager rules
+        for call_name, msg, mod_hint in _ADVANCED_RULES["context_manager_required"]:
+            if self._is_call_to(node, call_name):
+                is_in_async_with_header = any(
+                    isinstance(item, ast.withitem) and item.context_expr == node
+                    for aw in self.current_async_with for item in aw.items
+                )
+                if not is_in_async_with_header:
+                    self.add_violation(node, msg, mod_hint)
+
+        # Deprecated kwargs rules
+        for call_name, kwarg_name, msg, mod_hint in _ADVANCED_RULES["deprecated_kwargs"]:
+            if self._is_call_to(node, call_name):
+                for kw in node.keywords:
+                    if kw.arg == kwarg_name:
+                        self.add_violation(node, msg, mod_hint)
+
+        self.generic_visit(node)
+
+    def _is_call_to(self, node, name):
+        if isinstance(node.func, ast.Name) and node.func.id == name.split('.')[-1]:
+            return True
+        if isinstance(node.func, ast.Attribute):
+            full_name = self._get_full_name(node.func)
+            if full_name == name:
+                return True
+        return False
+
+    def _get_full_name(self, node):
+        if isinstance(node, ast.Name):
+            return node.id
+        if isinstance(node, ast.Attribute):
+            prefix = self._get_full_name(node.value)
+            if prefix:
+                return f"{prefix}.{node.attr}"
+        return None
+
+    def add_violation(self, node, msg, mod_hint=None):
+        self.violations.append({
+            "filename": str(self.filename),
+            "location": {"row": node.lineno, "column": node.col_offset + 1},
+            "code": "CHUB",
+            "message": msg,
+            "_synth_mod": mod_hint
+        })
 
 
 @cli.command()
 @click.argument("filenames", nargs=-1, type=click.Path(exists=True, path_type=Path))
 def run(filenames):
     """Run the pre-commit deprecation guard."""
+    _sync_global_db()
     py_files = [f for f in filenames if f.suffix == ".py"]
-    js_files = [f for f in filenames if f.suffix in JS_EXTENSIONS]
+    js_files = [f for f in filenames if f.suffix in NON_PY_EXTENSIONS]
     if not py_files and not js_files:
         sys.exit(0)
 
@@ -781,9 +934,9 @@ def run(filenames):
     LOCAL_REGISTRY_MIN_ENTRIES = 3
     if len(registry) < LOCAL_REGISTRY_MIN_ENTRIES:
         console.print("[dim]First run detected — bootstrapping registry from full project scan...[/dim]")
-        global_lookup = _load_global_chub_registry()
+        global_lookup, _ = _load_global_chub_registry()
         if global_lookup:
-            for pattern in ["**/*.py", "**/*.js", "**/*.ts", "**/*.jsx", "**/*.tsx"]:
+            for pattern in ["**/*.py", "**/*.js", "**/*.ts", "**/*.jsx", "**/*.tsx", "**/*.java", "**/*.c", "**/*.cpp"]:
                 for f in REPO_ROOT.rglob(pattern.split("/")[-1]):
                     parts = f.relative_to(REPO_ROOT).parts
                     if any(p.startswith(".") or p in (
@@ -828,7 +981,7 @@ def run(filenames):
 
     # Auto-resolve unknown modules from global chub registry
     if unknown_modules:
-        global_lookup = _load_global_chub_registry()
+        global_lookup, _ = _load_global_chub_registry()
         auto_resolved = {}
         still_unknown = set()
         for mod in unknown_modules:
@@ -850,9 +1003,23 @@ def run(filenames):
             except Exception:
                 pass
         
-        for mod in sorted(still_unknown):
-            console.print(f"[yellow]⚠ `{mod}` imported but not in chub registry. "
-                          f"Run: python scripts/chub_guard.py update-registry[/yellow]")
+        # Re-check unknowns: some might have been resolved by another name (alias)
+        really_unknown = set()
+        for mod in still_unknown:
+            # Check if this module or any of its parts already resolve to a doc_id in registry
+            # e.g., if "@angular/core" is imported, "angular" might be in registry.
+            parts = mod.replace("@", "").split("/")
+            # Check for the full mod, the stripped mod, and the top-level part
+            possible_keys = {mod, mod.replace("@", ""), parts[0] if parts else mod}
+            if any(k in registry for k in possible_keys):
+                continue
+            really_unknown.add(mod)
+
+        for mod in sorted(really_unknown):
+            if mod in global_lookup:
+                console.print(f"[yellow]⚠ `{mod}` has chub docs but isn't mapped locally. "
+                              f"Run: python scripts/chub_guard.py update-registry[/yellow]")
+            # else: chub has no docs for this module — silently skip
 
     py_needed_docs = set(all_needed_docs)
 
@@ -864,134 +1031,98 @@ def run(filenames):
 
     # ── Version-aware doc fetching ───────────────────────────────────
     pinned = get_pinned_versions()
+    _, doc_id_to_langs = _load_global_chub_registry()
 
+    # Consolidate all docs to fetch
+    all_docs_to_fetch = []
     for doc_id in py_needed_docs:
+        all_docs_to_fetch.append((doc_id, "python"))
+    for doc_id in js_needed_docs:
+        all_docs_to_fetch.append((doc_id, "javascript"))
+
+    for doc_id, preferred_lang in all_docs_to_fetch:
         safe_name = doc_id.replace("/", "__")
-        doc_path = DOCS_DIR / f"{safe_name}.md"
+        suffix = "__js" if preferred_lang == "javascript" else ""
+        doc_path = DOCS_DIR / f"{safe_name}{suffix}.md"
         
         needs_fetch = True
         if doc_path.exists():
             mtime = doc_path.stat().st_mtime
             if (time.time() - mtime) < 86400:
+                needs_fetch = False
+
+        if needs_fetch:
+            # Determine which languages to try based on registry info
+            available_langs = doc_id_to_langs.get(doc_id, [])
+            fetch_langs = []
+            if preferred_lang in available_langs:
+                fetch_langs.append(preferred_lang)
+            
+            # Fallbacks
+            if preferred_lang == "javascript":
+                for fallback in ["typescript", "javascript", "python"]:
+                    if fallback in available_langs and fallback not in fetch_langs:
+                        fetch_langs.append(fallback)
+            elif preferred_lang == "python":
+                if "python" not in fetch_langs:
+                    fetch_langs.append("python")
+            
+            # If registry has no info, use defaults
+            if not fetch_langs:
+                fetch_langs = [preferred_lang]
+                if preferred_lang == "javascript":
+                    fetch_langs.append("typescript")
+
+            success = False
+            tried_langs = []
+            for lang in fetch_langs:
+                tried_langs.append(lang)
+                if chub_available:
+                    try:
+                        pkg_name = doc_id.split("/")[0]
+                        version_args = ["--version", pinned[pkg_name]] if pkg_name in pinned else []
+                        res = subprocess.run(
+                            [chub_cmd, "get", doc_id, "--lang", lang, "--output", str(doc_path)] + version_args,
+                            timeout=30,
+                            capture_output=True,
+                            check=False
+                        )
+                        if res.returncode == 0:
+                            success = True
+                            # Also fetch full reference if possible
+                            full_path = DOCS_DIR / f"{safe_name}{suffix}__full.md"
+                            subprocess.run(
+                                [chub_cmd, "get", doc_id, "--lang", lang, "--full", "--output", str(full_path)] + version_args,
+                                timeout=45, capture_output=True, check=False
+                            )
+                            break
+                    except Exception:
+                        pass
+
+                # Github Fallback (try each language)
+                if not success:
+                    try:
+                        parts = doc_id.split("/")
+                        if len(parts) == 2:
+                            pkg, doc = parts
+                            url = f"https://raw.githubusercontent.com/andrewyng/context-hub/main/content/{pkg}/docs/{doc}/{lang}/DOC.md"
+                            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                            with urllib.request.urlopen(req, timeout=15) as response:
+                                doc_path.write_bytes(response.read())
+                            success = True
+                            console.print(f"[green]✓ Github fallback fetch ({lang}) successful for {doc_id}[/green]")
+                            break
+                    except Exception:
+                        pass
+            
+            if success:
                 try:
                     rel_path = doc_path.relative_to(REPO_ROOT)
                 except ValueError:
                     rel_path = doc_path
-                console.print(f"[green]✓ docs cached → {rel_path}[/green]")
-                needs_fetch = False
-
-        if needs_fetch:
-            success = False
-            if chub_available:
-                try:
-                    pkg_name = doc_id.split("/")[0]
-                    version_args = ["--version", pinned[pkg_name]] if pkg_name in pinned else []
-                    res = subprocess.run(
-                        [chub_cmd, "get", doc_id, "--lang", "python", "--output", str(doc_path)] + version_args,
-                        timeout=30,
-                        capture_output=True,
-                        check=False
-                    )
-                    if res.returncode == 0:
-                        success = True
-                        # GAP 5: Also fetch full reference files for additional deprecation context
-                        try:
-                            full_path = DOCS_DIR / f"{safe_name}__full.md"
-                            if not full_path.exists() or (time.time() - full_path.stat().st_mtime) >= 86400:
-                                subprocess.run(
-                                    [chub_cmd, "get", doc_id, "--lang", "python", "--full",
-                                     "--output", str(full_path)] + version_args,
-                                    timeout=45,
-                                    capture_output=True,
-                                    check=False
-                                )
-                        except Exception:
-                            pass  # --full is best-effort, never block on it
-                    else:
-                        console.print(f"[yellow]⚠ Warning: chub fetch failed for {doc_id}: {res.stderr.decode('utf-8', errors='replace')}. Falling back to GitHub raw fetch...[/yellow]")
-                except Exception as e:
-                    console.print(f"[yellow]⚠ Warning: chub fetch timed out or failed for {doc_id}: {e}. Falling back to GitHub raw fetch...[/yellow]")
-
-            if not success:
-                # Fallback to direct raw github download since chub CLI crashes on some packages in Windows
-                try:
-                    # Parse package format: e.g., "openai/package", "langchain/core", "gemini/genai"
-                    parts = doc_id.split("/")
-                    if len(parts) == 2:
-                        pkg, doc = parts
-                        url = f"https://raw.githubusercontent.com/andrewyng/context-hub/main/content/{pkg}/docs/{doc}/python/DOC.md"
-                        
-                        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                        with urllib.request.urlopen(req, timeout=15) as response:
-                            doc_path.write_bytes(response.read())
-                        console.print(f"[green]✓ Github fallback fetch successful for {doc_id}[/green]")
-                    else:
-                        console.print(f"[yellow]⚠ Github fallback failed: Invalid doc_id format {doc_id}[/yellow]")
-                except Exception as e:
-                    console.print(f"[yellow]⚠ Warning: Github fallback fetch failed for {doc_id}: {e}[/yellow]")
-
-    # ── JS/TS doc fetching ───────────────────────────────────────────
-    for doc_id in js_needed_docs:
-        safe_name = doc_id.replace("/", "__")
-        doc_path = DOCS_DIR / f"{safe_name}__js.md"
-
-        needs_fetch = True
-        if doc_path.exists():
-            mtime = doc_path.stat().st_mtime
-            if (time.time() - mtime) < 86400:
-                try:
-                    rel_path = doc_path.relative_to(REPO_ROOT)
-                except ValueError:
-                    rel_path = doc_path
-                console.print(f"[green]✓ JS docs cached → {rel_path}[/green]")
-                needs_fetch = False
-
-        if needs_fetch:
-            success = False
-            if chub_available:
-                try:
-                    pkg_name = doc_id.split("/")[0]
-                    version_args = ["--version", pinned[pkg_name]] if pkg_name in pinned else []
-                    res = subprocess.run(
-                        [chub_cmd, "get", doc_id, "--lang", "javascript", "--output", str(doc_path)] + version_args,
-                        timeout=30,
-                        capture_output=True,
-                        check=False
-                    )
-                    if res.returncode == 0:
-                        success = True
-                        # GAP 5: Also fetch full reference files for JS
-                        try:
-                            full_path = DOCS_DIR / f"{safe_name}__js__full.md"
-                            if not full_path.exists() or (time.time() - full_path.stat().st_mtime) >= 86400:
-                                subprocess.run(
-                                    [chub_cmd, "get", doc_id, "--lang", "javascript", "--full",
-                                     "--output", str(full_path)] + version_args,
-                                    timeout=45,
-                                    capture_output=True,
-                                    check=False
-                                )
-                        except Exception:
-                            pass  # --full is best-effort, never block on it
-                    else:
-                        console.print(f"[yellow]⚠ Warning: chub JS fetch failed for {doc_id}: {res.stderr.decode('utf-8', errors='replace')}. Falling back to GitHub raw fetch...[/yellow]")
-                except Exception as e:
-                    console.print(f"[yellow]⚠ Warning: chub JS fetch timed out or failed for {doc_id}: {e}. Falling back to GitHub raw fetch...[/yellow]")
-
-            if not success:
-                try:
-                    parts = doc_id.split("/")
-                    if len(parts) == 2:
-                        pkg, doc = parts
-                        url = f"https://raw.githubusercontent.com/andrewyng/context-hub/main/content/{pkg}/docs/{doc}/javascript/DOC.md"
-                        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                        with urllib.request.urlopen(req, timeout=15) as response:
-                            doc_path.write_bytes(response.read())
-                        console.print(f"[green]✓ JS Github fallback fetch successful for {doc_id}[/green]")
-                    else:
-                        console.print(f"[yellow]⚠ JS Github fallback failed: Invalid doc_id format {doc_id}[/yellow]")
-                except Exception as e:
-                    console.print(f"[yellow]⚠ Warning: JS Github fallback fetch failed for {doc_id}: {e}[/yellow]")
+                console.print(f"[green]✓ {preferred_lang.upper()} docs resolved ({tried_langs[-1]}) → {rel_path}[/green]")
+            else:
+                console.print(f"[yellow]⚠ Failed to resolve docs for {doc_id} in any of: {fetch_langs}[/yellow]")
 
     # ── Ruff linting (Python only) ───────────────────────────────────
     ruff_output = []
@@ -1053,6 +1184,11 @@ def run(filenames):
         except Exception:
             continue
 
+        # 1. Advanced AST Analysis
+        analyzer = PythonAdvancedAnalyzer(f, content, registry)
+        analyzer.visit(tree)
+        ruff_output.extend(analyzer.violations)
+
         def add_synth(line, col, mod, msg):
             if line - 1 < len(lines) and any(kw in lines[line - 1] for kw in ["# noqa: UP", "# noqa: CHUB"]):
                 return
@@ -1066,9 +1202,7 @@ def run(filenames):
                     "_synth_mod": mod
                 })
 
-        # GAP 3: Removed hardcoded AST fallback (Step 1). Dynamic system + historical DB covers these.
-
-        # Step 2: Dynamic text matching against chub guidelines (for explicit string matches)
+        # 2. Dynamic text matching against chub guidelines
         for line_idx, line in enumerate(lines):
             if any(kw in line for kw in ["# noqa: UP", "# noqa: CHUB"]):
                 continue
@@ -1082,6 +1216,18 @@ def run(filenames):
     # ── JS/TS analysis ───────────────────────────────────────────────
     for f in js_files:
         js_violations = analyze_js_file(f, registry, js_dynamic_patterns)
+        
+        # Advanced JS Rule: Angular mixed with React
+        imports = get_js_imports(f)
+        if ("react" in imports or "react-dom" in imports) and ("angular" in imports or "@angular/core" in imports):
+            js_violations.append({
+                "filename": str(f),
+                "location": {"row": 1, "column": 1},
+                "code": "CHUB",
+                "message": "Improper scoping: Found Angular and React imports in the same file. Frameworks should not be mixed within the same component scope.",
+                "_synth_mod": "angular"
+            })
+
         ruff_output.extend(js_violations)
 
     violations = []
@@ -1104,7 +1250,7 @@ def run(filenames):
             safe_name = doc_id_for_file.replace("/", "__")
             doc_path = DOCS_DIR / f"{safe_name}.md"
             # GAP 2: Pass correct language for hint extraction
-            is_js = str(file_path).endswith(tuple(JS_EXTENSIONS))
+            is_js = str(file_path).endswith(tuple(NON_PY_EXTENSIONS))
             hint = extract_chub_hint(doc_path, lang="javascript" if is_js else "python")
         elif not synth_mod:
             # If it's a regular ruff UP warning, just report it without attaching AI hints
@@ -1132,9 +1278,12 @@ def run(filenames):
         console.print("[green]✓ No deprecated API calls detected[/green]")
         sys.exit(0)
 
-    ai_violations = [v for v in violations if v.code == "CHUB" and not any(str(v.filename).endswith(ext) for ext in JS_EXTENSIONS)]
-    js_chub_violations = [v for v in violations if v.code == "CHUB" and any(str(v.filename).endswith(ext) for ext in JS_EXTENSIONS)]
+    ai_violations = [v for v in violations if v.code == "CHUB" and Path(str(v.filename)).suffix == ".py"]
+    js_chub_violations = [v for v in violations if v.code == "CHUB" and Path(str(v.filename)).suffix in JS_TS_EXTENSIONS]
+    c_chub_violations = [v for v in violations if v.code == "CHUB" and Path(str(v.filename)).suffix in C_EXTENSIONS]
+    java_chub_violations = [v for v in violations if v.code == "CHUB" and Path(str(v.filename)).suffix in JAVA_EXTENSIONS]
     python_violations = [v for v in violations if v.code != "CHUB"]
+    all_chub_violations = ai_violations + js_chub_violations + c_chub_violations + java_chub_violations
 
     # ── Summary header ──────────────────────────────────────────────
     console.print()
@@ -1230,6 +1379,58 @@ def run(filenames):
         console.print(js_table)
         console.print()
 
+    if c_chub_violations:
+        c_table = Table(
+            show_header=True,
+            header_style="bold red",
+            border_style="dim",
+            title="[bold red]⚙ C/C++ Deprecations (Chub)[/bold red]",
+            pad_edge=True,
+            expand=True,
+        )
+        c_table.add_column("#", style="dim", width=4, justify="right")
+        c_table.add_column("File", style="red", no_wrap=True, ratio=3)
+        c_table.add_column("Line", style="magenta", width=6, justify="right")
+        c_table.add_column("Severity", width=12)
+        c_table.add_column("Issue", ratio=6)
+
+        for idx, v in enumerate(c_chub_violations, 1):
+            issue = Text(v.message)
+            if v.doc_id:
+                issue.append(f"  [{v.doc_id}]", style="dim")
+            severity = _get_severity(v.message)
+            c_table.add_row(str(idx), str(v.filename), str(v.line), severity, issue)
+            if v.chub_hint and v.doc_id and v.doc_id not in seen_hints:
+                seen_hints[v.doc_id] = v.chub_hint
+        console.print(c_table)
+        console.print()
+
+    if java_chub_violations:
+        java_table = Table(
+            show_header=True,
+            header_style="bold blue",
+            border_style="dim",
+            title="[bold blue]☕ Java Deprecations (Chub)[/bold blue]",
+            pad_edge=True,
+            expand=True,
+        )
+        java_table.add_column("#", style="dim", width=4, justify="right")
+        java_table.add_column("File", style="blue", no_wrap=True, ratio=3)
+        java_table.add_column("Line", style="magenta", width=6, justify="right")
+        java_table.add_column("Severity", width=12)
+        java_table.add_column("Issue", ratio=6)
+
+        for idx, v in enumerate(java_chub_violations, 1):
+            issue = Text(v.message)
+            if v.doc_id:
+                issue.append(f"  [{v.doc_id}]", style="dim")
+            severity = _get_severity(v.message)
+            java_table.add_row(str(idx), str(v.filename), str(v.line), severity, issue)
+            if v.chub_hint and v.doc_id and v.doc_id not in seen_hints:
+                seen_hints[v.doc_id] = v.chub_hint
+        console.print(java_table)
+        console.print()
+
     # ── Chub hints (one per SDK) ────────────────────────────────────
     if seen_hints:
         console.print()
@@ -1243,10 +1444,16 @@ def run(filenames):
                 if "require(" in hint_code or "const " in hint_code or "=> " in hint_code:
                     hint_lang = "javascript"
             hint_panel = Syntax(hint_code, hint_lang, theme="monokai", line_numbers=False, word_wrap=True)
+            # Determine correct lang flag for subtitle
+            hint_lang_flag = "python"
+            if hint_code and any(kw in hint_code for kw in ["require(", "const ", "let ", "import ", "=> "]):
+                if not any(kw in hint_code for kw in ["import ast", "import os", "def ", "class ", "    return"]):
+                    hint_lang_flag = "javascript"
+                    
             console.print(Panel(
                 hint_panel,
                 title=f"[bold green]✦ {doc_id}[/bold green]",
-                subtitle=f"[dim]chub get {doc_id} --lang python[/dim]",
+                subtitle=f"[dim]chub get {doc_id} --lang {hint_lang_flag}[/dim]",
                 border_style="green",
                 padding=(1, 2),
             ))
@@ -1342,21 +1549,54 @@ def run(filenames):
             run_lines.append(f"| {idx} | `{fname}` | {v.line} | {severity} | {issue_text} |")
         run_lines.append("")
 
+    if c_chub_violations:
+        run_lines += [
+            "### ⚙ C/C++ Deprecations (Chub)",
+            "",
+            "| # | File | Line | Severity | Issue |",
+            "|---|------|------|----------|-------|",
+        ]
+        for idx, v in enumerate(c_chub_violations, 1):
+            issue_text = v.message.replace("|", "\\|")
+            fname = str(v.filename).replace("\\", "/")
+            severity = _get_severity(v.message)
+            run_lines.append(f"| {idx} | `{fname}` | {v.line} | {severity} | {issue_text} |")
+        run_lines.append("")
+
+    if java_chub_violations:
+        run_lines += [
+            "### ☕ Java Deprecations (Chub)",
+            "",
+            "| # | File | Line | Severity | Issue |",
+            "|---|------|------|----------|-------|",
+        ]
+        for idx, v in enumerate(java_chub_violations, 1):
+            issue_text = v.message.replace("|", "\\|")
+            fname = str(v.filename).replace("\\", "/")
+            severity = _get_severity(v.message)
+            run_lines.append(f"| {idx} | `{fname}` | {v.line} | {severity} | {issue_text} |")
+        run_lines.append("")
+
     if seen_hints:
         run_lines += [
             "",
             "### Recommended Fixes",
         ]
         for doc_id, hint_code in seen_hints.items():
+            # Detect hint language for correct fence
+            _fence_lang = "python"
+            if hint_code and any(kw in hint_code for kw in ["require(", "const ", "let ", "=> "]):
+                if not any(kw in hint_code for kw in ["def ", "class ", "import ast", "    return"]):
+                    _fence_lang = "javascript"
             run_lines += [
                 "",
                 f"#### ✦ `{doc_id}`",
                 "",
-                "```python",
+                f"```{_fence_lang}",
                 hint_code,
                 "```",
                 "",
-                f"> Full docs: `chub get {doc_id} --lang python`",
+                f"> Full docs: `chub get {doc_id} --lang {_fence_lang}`",
             ]
 
     run_lines += [
@@ -1404,13 +1644,16 @@ def run(filenames):
     except Exception as e:
         console.print(f"[yellow]⚠ Could not write report: {e}[/yellow]")
 
-    sys.exit(1)
+    # Only block commit if there are real violations
+    total_blocking = len(ai_violations) + len(js_chub_violations) + len(c_chub_violations) + len(java_chub_violations) + len(python_violations)
+    if total_blocking > 0:
+        sys.exit(1)
 
 
 @cli.command()
 def update_registry():
     """Scan project imports and auto-populate local registry from global chub registry."""
-    global_lookup = _load_global_chub_registry()
+    global_lookup, _ = _load_global_chub_registry()
     if not global_lookup:
         console.print("[red]Error: Global chub registry not found at ~/.chub/sources/default/registry.json[/red]")
         console.print("[dim]Install chub first: npm install -g context-hub[/dim]")
@@ -1467,6 +1710,63 @@ def update_registry():
         registry.update(new_entries)
         REGISTRY_PATH.write_text(json.dumps(registry, indent=2) + "\n", encoding="utf-8")
         console.print(f"[green]✓ Registry updated with {len(new_entries)} new entries.[/green]")
+
+
+def _is_quality_pattern(pattern: str) -> bool:
+    """Return True if pattern is worth promoting to global database."""
+    p = pattern.strip()
+    # Minimum length
+    if len(p) < 6:
+        return False
+    # Must contain at least one dot or space (import path or call chain)
+    if "." not in p and " " not in p:
+        return False
+    # Skip pure punctuation or numeric strings
+    if re.match(r'^[^a-zA-Z]+$', p):
+        return False
+    # Skip single generic words
+    generic = {"create", "update", "delete", "get", "set", "run", "start",
+               "stop", "init", "build", "load", "save", "read", "write",
+               "open", "close", "connect", "send", "receive", "request",
+               "response", "error", "success", "fail", "check", "test"}
+    if p.lower() in generic:
+        return False
+    return True
+
+@cli.command()
+def promote_deprecations():
+    """Merge locally discovered patterns from cache into root deprecations.json for global sync."""
+    root_db_path = REPO_ROOT / "deprecations.json"
+    if not root_db_path.exists():
+        root_db_path.write_text("{}", encoding="utf-8")
+    
+    try:
+        local_db = json.loads(HISTORICAL_DB_PATH.read_text(encoding="utf-8")) if HISTORICAL_DB_PATH.exists() else {}
+        root_db = json.loads(root_db_path.read_text(encoding="utf-8"))
+        
+        merged_count = 0
+        for doc_id, data in local_db.items():
+            if doc_id not in root_db:
+                root_db[doc_id] = {"patterns": [], "last_updated": ""}
+            
+            existing = set(root_db[doc_id].get("patterns", []))
+            incoming = set(p for p in data.get("patterns", []) if _is_quality_pattern(p))
+            
+            new_patterns = incoming - existing
+            if new_patterns:
+                merged_count += len(new_patterns)
+                root_db[doc_id]["patterns"] = sorted(list(existing | incoming))
+                root_db[doc_id]["last_updated"] = datetime.datetime.now().strftime("%Y-%m-%d")
+        
+        if merged_count > 0:
+            root_db_path.write_text(json.dumps(root_db, indent=2) + "\n", encoding="utf-8")
+            console.print(f"[green]✓ Successfully promoted {merged_count} new patterns to root `deprecations.json`[/green]")
+            console.print("[dim]Next step: `git add deprecations.json && git commit -m 'Update global patterns' && git push`[/dim]")
+        else:
+            console.print("[yellow]No new patterns to promote — root `deprecations.json` is already up to date.[/yellow]")
+            
+    except Exception as e:
+        console.print(f"[red]Error promoting deprecations: {e}[/red]")
 
 
 if __name__ == "__main__":

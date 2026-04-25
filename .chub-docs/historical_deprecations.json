@@ -1,26 +1,32 @@
 {
   "gemini/genai": {
     "patterns": [
-      "gemini-1.5-pro",
-      "from google.generativeai import types",
-      "from google.api_core.exceptions import GoogleAPIError",
-      "response.text",
-      "import google.generativeai",
-      "model.generate_content",
-      "gemini-1.5-flash",
-      "genai.configure(api_key=)",
-      "from google.ai import generativelanguage_v1",
       "genai.GenerationConfig",
+      "import google.generativeai",
+      "genai.configure(api_key=)",
+      "from google.api_core.exceptions import GoogleAPIError",
+      "gemini-1.5-pro",
+      "google.generativeai",
       "response = model.generate_content(, stream=True)",
-      "from google.generativeai"
+      "response.text",
+      "gemini-1.5-flash",
+      "from google.generativeai",
+      "from google.generativeai import types",
+      "model.generate_content",
+      "from google.ai import generativelanguage_v1"
     ],
-    "last_updated": "2026-04-23"
+    "last_updated": "2026-04-24"
   },
   "openai/package": {
     "patterns": [
-      "openai.ChatCompletion.create"
+      "openai.Completion.create",
+      "openai.ChatCompletion.create",
+      "text-davinci-003",
+      "gpt-3.5-turbo-instruct",
+      "client.chat.completions.create",
+      "ChatCompletion"
     ],
-    "last_updated": "2026-04-23"
+    "last_updated": "2026-04-24"
   },
   "rich/package": {
     "patterns": [
@@ -31,9 +37,15 @@
   },
   "langchain/package": {
     "patterns": [
-      "1.2.11"
+      "1.2.11",
+      "HuggingFaceHub",
+      "LLMChain",
+      "SequentialChain",
+      "from langchain.chat_models import ChatOpenAI",
+      "from langchain.llms import OpenAI",
+      "langchain.chat_models"
     ],
-    "last_updated": "2026-04-23"
+    "last_updated": "2026-04-01"
   },
   "pytest/package": {
     "patterns": [
@@ -57,77 +69,89 @@
   },
   "anthropic/package": {
     "patterns": [
+      "AI_PROMPT",
+      "Anthropic().completions.create",
+      "HUMAN_PROMPT",
+      "claude-2",
+      "claude-instant",
       "client.beta",
+      "client.completions.create",
       "message.content"
     ],
-    "last_updated": "2026-04-23"
+    "last_updated": "2026-04-01"
   },
   "react/react": {
     "patterns": [
       "import React from \"react\""
     ],
-    "last_updated": "2026-04-23"
+    "last_updated": "2026-04-24"
   },
   "sqlalchemy/package": {
     "patterns": [
       "Session.execute",
+      "Session.scalars",
       "engine.execute",
       "2.1.0b1",
-      "create_engine(, future=True)",
       "2.0.48",
-      "Session.scalars"
+      "create_engine(, future=True)"
     ],
-    "last_updated": "2026-04-23"
+    "last_updated": "2026-04-24"
   },
   "alembic/package": {
     "patterns": [
       "pyproject",
       "alembic.ini",
-      "alembic/versions/",
-      "ALTER TABLE",
-      "alembic/script.py.mako",
-      "pyproject.toml",
       "async",
+      "ALTER TABLE",
       "1.15.0",
+      "generic",
       "alembic/env.py",
       "multidb",
+      "pyproject.toml",
+      "alembic/versions/",
       "alembic init",
-      "generic"
+      "alembic/script.py.mako"
     ],
-    "last_updated": "2026-04-23"
+    "last_updated": "2026-04-24"
   },
   "torch/package": {
     "patterns": [
-      "v2.9.1",
       "2.10.0",
+      "v2.9.1",
       "Stable (2.7.0)"
     ],
-    "last_updated": "2026-04-23"
+    "last_updated": "2026-04-24"
   },
   "accelerate/package": {
     "patterns": [
-      ".to(device)",
       "loss.backward",
-      "accelerate launch",
-      "if __name__ == \"__main__\":"
+      ".to(device)",
+      "if __name__ == \"__main__\":",
+      "accelerate launch"
     ],
-    "last_updated": "2026-04-23"
+    "last_updated": "2026-04-24"
   },
   "albumentations/package": {
     "patterns": [
       "2.0.0"
     ],
-    "last_updated": "2026-04-23"
+    "last_updated": "2026-04-24"
   },
   "aiohttp/package": {
     "patterns": [
-      "resp.content",
-      "web.Application",
       "resp.text",
-      "resp.json",
+      "resp.content",
       "aiohttp 4.0",
-      "resp.read"
+      "resp.read",
+      "web.Application",
+      "resp.json"
     ],
-    "last_updated": "2026-04-23"
+    "last_updated": "2026-04-24"
+  },
+  "angular/core": {
+    "patterns": [
+      ".update"
+    ],
+    "last_updated": "2026-04-24"
   }
 }

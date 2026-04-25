@@ -1,11 +1,21 @@
 {
   "gemini/genai": {
     "patterns": [
-      "import google.generativeai",
+      "from google.ai import generativelanguage_v1",
+      "from google.api_core.exceptions import GoogleAPIError",
       "from google.generativeai",
-      "google.generativeai"
+      "from google.generativeai import types",
+      "gemini-1.5-flash",
+      "gemini-1.5-pro",
+      "genai.GenerationConfig",
+      "genai.configure(api_key=)",
+      "google.generativeai",
+      "import google.generativeai",
+      "model.generate_content",
+      "response = model.generate_content(, stream=True)",
+      "response.text"
     ],
-    "last_updated": "2026-04-01"
+    "last_updated": "2026-04-24"
   },
   "openai/package": {
     "patterns": [
@@ -20,22 +30,25 @@
   },
   "anthropic/package": {
     "patterns": [
-      "Anthropic().completions.create",
-      "client.completions.create",
-      "HUMAN_PROMPT",
       "AI_PROMPT",
+      "Anthropic().completions.create",
+      "HUMAN_PROMPT",
       "claude-2",
-      "claude-instant"
+      "claude-instant",
+      "client.beta",
+      "client.completions.create",
+      "message.content"
     ],
-    "last_updated": "2026-04-01"
+    "last_updated": "2026-04-24"
   },
   "langchain/package": {
     "patterns": [
-      "from langchain.chat_models import ChatOpenAI",
-      "from langchain.llms import OpenAI",
+      "1.2.11",
+      "HuggingFaceHub",
       "LLMChain",
       "SequentialChain",
-      "HuggingFaceHub",
+      "from langchain.chat_models import ChatOpenAI",
+      "from langchain.llms import OpenAI",
       "langchain.chat_models"
     ],
     "last_updated": "2026-04-01"

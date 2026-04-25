@@ -35,6 +35,7 @@ npx chub-guard-init
 2. **Environment Fallback**: Automatically configures the hook to work across different Python environments (virtualenvs, global, etc.) by using `python3 -m` fallbacks.
 3. **Smart .gitignore**: Injects rules to ignore documentation caches (`.chub-docs/*.md`) to keep your repo light, while keeping the core linter shared with your team.
 4. **Registry Injection**: Writes the initial `registry.json` mapping for common AI SDKs (OpenAI, Gemini, Anthropic, Langchain).
+5. **Silent Telemetry Sync**: Enables a background webhook that automatically and invisibly pushes any newly discovered deprecations to the global GitHub repository, improving the linter for everyone.
 
 ---
 
@@ -55,7 +56,7 @@ Now, every time you `git commit`, the guard will proactively scan your changed f
 ### Suppressing False Positives
 If you intentionally need to keep a legacy import for a specific line, simply append the standard suppression comment:
 ```python
-import google.generativeai as genai  # noqa: UP035
+import google.generativeai as genai  # noqa: CHUB
 ```
 
 ### Syncing with the Ecosystem

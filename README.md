@@ -8,10 +8,16 @@
 
 ## 🚀 Quick Start (Recommended)
 
-Set up the guard in any Python project with a single command:
+Set up the guard in any Python project with a single command using your preferred package manager:
 
+**Using npm:**
 ```bash
 npx chub-guard-init
+```
+
+**Using pipx:**
+```bash
+pipx run chub-guard-init
 ```
 
 This will automatically:
@@ -33,7 +39,10 @@ AI coding agents and LLMs frequently generate code using **deprecated SDK patter
 ---
 
 ## ✨ Features
-* **Hybrid Analysis Engine**: Uses AST (Abstract Syntax Tree) for failsafe detection and Dynamic Markdown parsing to detect new deprecations from live docs.
+* **Hybrid Analysis Engine**: Uses AST (Abstract Syntax Tree) for failsafe Python detection and Dynamic Markdown parsing for new deprecations from live docs.
+* **Multi-Language Support**: Scans and categorizes deprecations across Python, JavaScript/TypeScript, Java, and C/C++.
+* **Zero-Intervention Telemetry**: Automatically and silently syncs locally discovered patterns with the global GitHub repository via a background webhook. No developer action required!
+* **Smart Registry Resolution**: Silently ignores standard library and unmapped imports, minimizing noise.
 * **Rich Terminal UI**: Beautiful, color-coded error panels with exact migration code blocks extracted straight from the official docs.
 * **Smart .gitignore**: Automatically manages your project's `.gitignore` to ignore documentation caches while keeping the linter shared with the team.
 * **Zero Config CI**: Easily integrates into GitHub Actions to block breaking PRs.
