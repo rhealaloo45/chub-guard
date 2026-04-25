@@ -30,6 +30,12 @@ Run this command once at the root of any Python project:
 npx chub-guard-init
 ```
 
+### Run on demand (entire project)
+If you want to scan your entire project without waiting for a commit:
+```bash
+npx chub-guard-init run-all
+```
+
 ### What happens under the hood?
 1. **Automated Hook Setup**: Installs `pre-commit` and registers the `chub-guard` linter in your `.git/hooks`.
 2. **Environment Fallback**: Automatically configures the hook to work across different Python environments (virtualenvs, global, etc.) by using `python3 -m` fallbacks.

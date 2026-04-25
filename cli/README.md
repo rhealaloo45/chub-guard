@@ -20,6 +20,12 @@ in any Python project.
     pip install chub-guard-init
     chub-guard-init
 
+### Run on demand (entire project)
+
+    pipx run chub-guard-init run-all
+    # or
+    chub-guard-init run-all
+
 This will:
 - Copy `chub_guard.py` into `scripts/`
 - Write `.pre-commit-config.yaml`

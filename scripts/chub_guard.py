@@ -713,7 +713,7 @@ def _load_historical_db() -> dict[str, list[str]]:
         try:
             req = urllib.request.Request(
                 HISTORICAL_DB_URL,
-                headers={'User-Agent': 'chub-guard/1.0'}
+                headers={'User-Agent': 'chub-guard/1.1.0'}
             )
             with urllib.request.urlopen(req, timeout=10) as response:
                 HISTORICAL_DB_PATH.write_bytes(response.read())
@@ -772,7 +772,7 @@ def _send_telemetry(doc_id: str, new_patterns: list[str]) -> None:
         req = urllib.request.Request(
             webhook_url, 
             data=payload, 
-            headers={'Content-Type': 'application/json', 'User-Agent': 'chub-guard/1.0'}
+            headers={'Content-Type': 'application/json', 'User-Agent': 'chub-guard/1.1.0'}
         )
         # Timeout quickly so it never blocks the user's git commit
         urllib.request.urlopen(req, timeout=2.0)
@@ -794,7 +794,7 @@ def _sync_global_db():
     
     try:
         console.print("[dim]Syncing global deprecation database from GitHub...[/dim]")
-        req = urllib.request.Request(HISTORICAL_DB_URL, headers={'User-Agent': 'Mozilla/5.0'})
+        req = urllib.request.Request(HISTORICAL_DB_URL, headers={'User-Agent': 'chub-guard/1.1.0'})
         with urllib.request.urlopen(req, timeout=10) as response:
             remote_data = json.loads(response.read().decode("utf-8"))
         
@@ -897,11 +897,41 @@ class PythonAdvancedAnalyzer(ast.NodeVisitor):
 @cli.command()
 @click.argument("filenames", nargs=-1, type=click.Path(exists=True, path_type=Path))
 def run(filenames):
-    """Run the pre-commit deprecation guard."""
+    """Run the deprecation guard. If no files are provided, it scans the entire project."""
     _sync_global_db()
-    py_files = [f for f in filenames if f.suffix == ".py"]
-    js_files = [f for f in filenames if f.suffix in NON_PY_EXTENSIONS]
+    
+    # ── File Discovery ──
+    input_files = list(filenames)
+    if not input_files:
+        # Default to all project files if no arguments provided
+        input_files = [REPO_ROOT]
+    
+    all_files = []
+    for path in input_files:
+        if path.is_dir():
+            # Recursively find all supported file types
+            for ext in [".py", ".js", ".ts", ".jsx", ".tsx", ".java", ".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".hxx"]:
+                all_files.extend(path.rglob(f"*{ext}"))
+        else:
+            all_files.append(path)
+
+    # De-duplicate and filter out ignored directories
+    final_files = []
+    for f in set(all_files):
+        parts = f.relative_to(REPO_ROOT).parts if f.is_relative_to(REPO_ROOT) else f.parts
+        if any(p.startswith(".") or p in ("node_modules", "venv", ".venv", "__pycache__", "dist", "build") for p in parts):
+            continue
+        if f.is_file():
+            final_files.append(f)
+
+    py_files = [f for f in final_files if f.suffix == ".py"]
+    js_files = [f for f in final_files if f.suffix in NON_PY_EXTENSIONS]
+    
     if not py_files and not js_files:
+        if filenames:
+            console.print("[yellow]⚠ No supported files found in the provided paths.[/yellow]")
+        else:
+            console.print("[yellow]⚠ No supported files found in the project root.[/yellow]")
         sys.exit(0)
 
     try:

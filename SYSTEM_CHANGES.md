@@ -11,3 +11,8 @@ This file documents the architectural changes made to `chub_guard.py` and the su
 ## False-Positive Reductions
 * **Doc-Fetch Language Handling:** Fixed a bug causing `chub get <package> --lang python` to fire uniformly across `.jsx` and `.tsx` files. The system now dynamically parses `--lang javascript` to the chub CLI if pulling JS-oriented frameworks (like `antd` or `react`).
 * **Fuzzy String Trimming Removed:** Overrode a legacy `chub_guard` function (`p.split('.')[0]`) that indiscriminately stripped characters off deprecation rules (converting `client.beta` -> `client` and `import React` -> `React`). The script now enforces strictly **full pattern matching**, entirely eliminating innocent keyword collisions with common variables like `client` or `async`.
+
+## Automated Community Intelligence (Telemetry)
+* **Silent Webhook Integration:** Implemented a `_send_telemetry` function in `chub_guard.py` that intercepts newly discovered deprecation patterns locally and silently POSTs them to a central webhook server hosted on Render.com.
+* **Zero-Friction Global Sync:** The Render server acts as an intermediary, using a GitHub token to automatically merge and commit these new patterns into the global `rhealaloo45/chub-guard/deprecations.json` registry.
+* **Failsafe Execution:** The telemetry is wrapped in a strict 2-second timeout `try/except` block, ensuring offline developers or server outages never block the core `git commit` process.

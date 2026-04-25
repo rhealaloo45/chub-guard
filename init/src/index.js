@@ -92,6 +92,24 @@ async function safeWrite(filePath, content, label) {
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
+const args = process.argv.slice(2);
+if (args[0] === 'run-all') {
+  const guardPath = join(cwd, 'scripts', 'chub_guard.py');
+  if (!existsSync(guardPath)) {
+    console.log('❌ Error: chub_guard.py not found in scripts/. Run npx chub-guard-init first.');
+    process.exit(1);
+  }
+  
+  console.log('');
+  console.log('🚀 Running chub-guard on all project files...');
+  console.log('───────────────────────────────────────');
+  try {
+    execSync(`python ${guardPath} run`, { stdio: 'inherit' });
+    process.exit(0);
+  } catch (err) {
+    process.exit(1);
+  }
+}
 
 console.log('');
 console.log('chub-guard-init');

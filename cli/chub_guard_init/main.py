@@ -57,6 +57,29 @@ def safe_write(file_path: Path, content: str, label: str) -> None:
 
 
 def main() -> None:
+    args = sys.argv[1:]
+    if args and args[0] == "run-all":
+        cwd = Path.cwd()
+        guard_path = cwd / "scripts" / "chub_guard.py"
+        if not guard_path.exists():
+            print("❌ Error: chub_guard.py not found in scripts/. Run 'chub-guard-init' first.")
+            sys.exit(1)
+        
+        print("")
+        print("🚀 Running chub-guard on all project files...")
+        print("───────────────────────────────────────")
+        try:
+            # Use sys.executable to ensure we use the same python interpreter if possible, 
+            # otherwise fallback to 'python'
+            py_cmd = sys.executable if sys.executable else "python"
+            subprocess.run([py_cmd, str(guard_path), "run"], check=True)
+            sys.exit(0)
+        except subprocess.CalledProcessError as e:
+            sys.exit(e.returncode)
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            sys.exit(1)
+
     cwd = Path.cwd()
 
     print("")
