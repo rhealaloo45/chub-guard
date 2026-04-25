@@ -1,12 +1,12 @@
 # chub-guard-init (pip)
 
-One command to set up [chub_guard](https://github.com/rhealaloo45/chub-guard)
-in any Python project.
+One command to set up [chub_guard](https://github.com/rhealaloo45/chub-guard) in any Python project.
 
 ## Prerequisites
 
 - Python >= 3.10
 - pip or pipx
+- Node.js/npm (for documentation engine)
 - git
 
 ## Usage
@@ -20,13 +20,16 @@ in any Python project.
     pip install chub-guard-init
     chub-guard-init
 
-### Run on demand (entire project)
+### Run on demand (Project-wide scan & report)
 
     pipx run chub-guard-init run-all
     # or
     chub-guard-init run-all
 
+This generates a detailed **`chub_guard_report.md`** in your root directory.
+
 This will:
+- **Auto-install** `@aisuite/chub` documentation engine via npm.
 - Copy `chub_guard.py` into `scripts/`
 - Write `.pre-commit-config.yaml`
 - Write `.chub-docs/registry.json`
@@ -36,9 +39,7 @@ This will:
 
 ## After Setup
 
-Install chub so the guard can fetch live docs:
-
-    npm install -g @aisuite/chub
+The guard will now run automatically on every `git commit`. 
 
 Make a commit to test it:
 

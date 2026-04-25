@@ -30,30 +30,26 @@ Run this command once at the root of any Python project:
 npx chub-guard-init
 ```
 
-### Run on demand (entire project)
-If you want to scan your entire project without waiting for a commit:
+### Run on demand (Manual Scan)
+You can run a full project scan at any time (without committing):
 ```bash
 npx chub-guard-init run-all
 ```
+This generates a detailed **`chub_guard_report.md`** in your root directory.
 
 ### What happens under the hood?
 1. **Automated Hook Setup**: Installs `pre-commit` and registers the `chub-guard` linter in your `.git/hooks`.
-2. **Environment Fallback**: Automatically configures the hook to work across different Python environments (virtualenvs, global, etc.) by using `python3 -m` fallbacks.
-3. **Smart .gitignore**: Injects rules to ignore documentation caches (`.chub-docs/*.md`) to keep your repo light, while keeping the core linter shared with your team.
-4. **Registry Injection**: Writes the initial `registry.json` mapping for common AI SDKs (OpenAI, Gemini, Anthropic, Langchain).
-5. **Silent Telemetry Sync**: Enables a background webhook that automatically and invisibly pushes any newly discovered deprecations to the global GitHub repository, improving the linter for everyone.
+2. **Auto-Dependency Installation**: Automatically installs the `@aisuite/chub` documentation engine globally if not already present.
+3. **Environment Fallback**: Automatically configures the hook to work across different Python environments.
+4. **Smart .gitignore**: Injects rules to ignore documentation caches (`.chub-docs/*.md`).
+5. **Registry Injection**: Writes the initial `registry.json` mapping for common AI SDKs (OpenAI, Gemini, Anthropic, Langchain).
+6. **Silent Telemetry Sync**: Enables a background webhook that automatically pushes newly discovered deprecations to the global repository.
 
 ---
 
 ## 🏁 After Setup
 
-Once installed, simply install the `chub` CLI to enable live documentation fetching:
-
-```bash
-npm install -g @aisuite/chub
-```
-
-Now, every time you `git commit`, the guard will proactively scan your changed files. If it finds a deprecated pattern, it will **block the commit** and provide you with a beautiful, rich terminal guide extracted directly from the official docs.
+Every time you `git commit`, the guard will proactively scan your changed files. If it finds a deprecated pattern, it will **block the commit** and provide you with a beautiful, rich terminal guide extracted directly from the official docs.
 
 ---
 

@@ -88,6 +88,9 @@ def main() -> None:
         print("")
         print("🚀 Running chub-guard on all project files...")
         print("───────────────────────────────────────")
+        print("  This will scan every file in the project and generate")
+        print("  a detailed markdown report in your root directory.")
+        print("")
         try:
             py_cmd = sys.executable if sys.executable else "python"
             subprocess.run([py_cmd, str(guard_path), "run"], check=True)

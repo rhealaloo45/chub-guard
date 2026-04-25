@@ -8,7 +8,7 @@
 
 ## 🚀 Quick Start (Recommended)
 
-Set up the guard in any Python project with a single command using your preferred package manager:
+Set up the guard in any Python project with a single command:
 
 **Using npm:**
 ```bash
@@ -20,15 +20,18 @@ npx chub-guard-init
 pipx run chub-guard-init
 ```
 
-**Run on demand (entire project):**
+**Run on demand (Project-wide scan & report):**
 ```bash
 npx chub-guard-init run-all
 # or
 pipx run chub-guard-init run-all
 ```
 
+This generates a comprehensive **`chub_guard_report.md`** in your root directory.
+
 This will automatically:
 * ✅ Copy the guard script and configuration.
+* ✅ **Auto-install** the `chub` documentation engine (no manual step required!).
 * ✅ Install the `pre-commit` hook (handles Python path issues automatically).
 * ✅ Configure your `.gitignore` to keep local doc caches out of your repo.
 
@@ -61,8 +64,8 @@ If you prefer not to use `npx`, follow these steps:
 
 1. **Install Prerequisites**:
    ```bash
-   npm install -g @aisuite/chub
    pip install pre-commit ruff rich click
+   # Note: @aisuite/chub is auto-installed by the init tool
    ```
 2. **Add to `.pre-commit-config.yaml`**:
    ```yaml

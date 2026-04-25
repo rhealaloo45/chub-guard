@@ -1670,7 +1670,15 @@ def run(filenames):
             full_report += HISTORY_HEADER + "\n".join(past_entries) + "\n"
 
         report_path.write_text(full_report, encoding="utf-8")
-        console.print(f"[dim]📄 Report updated → {report_path.relative_to(REPO_ROOT)}[/dim]")
+        console.print()
+        console.print(Panel(
+            f"[bold green]📊 REPORT GENERATED[/bold green]\n\n"
+            f"A detailed markdown report has been saved to:\n"
+            f"[cyan]{report_path.resolve()}[/cyan]\n\n"
+            f"[dim]Use this report to fix issues across your entire project.[/dim]",
+            border_style="green",
+            padding=(1, 2)
+        ))
     except Exception as e:
         console.print(f"[yellow]⚠ Could not write report: {e}[/yellow]")
 
