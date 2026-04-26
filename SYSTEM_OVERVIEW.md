@@ -50,7 +50,6 @@ Detects architectural misconfigurations, such as improperly mixing `Angular` and
 ### 5. Community Sync Loop
 The tool maintains a "living" intelligence database:
 *   **Automatic Pull:** Every 24 hours, the tool automatically fetches the latest community-contributed patterns from the global GitHub database and merges them into the local cache.
-*   **Zero-Intervention Telemetry (Promote):** The CLI uses a seamless, background telemetry webhook. Whenever it discovers a brand new pattern locally, it silently POSTs the payload to a cloud server (e.g. Render.com). This server authenticates and automatically commits the new discovery directly into the global GitHub repository, instantly sharing the intelligence with all other developers worldwide without requiring any manual developer intervention.
 
 ### 6. Standard Linting & Reporting
 *   **Standard Integration:** Executes `ruff` natively for Python `pyupgrade` (UP) rules and merges results with custom `CHUB` violations.

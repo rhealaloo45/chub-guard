@@ -1,4 +1,4 @@
-# 🛡️ chub Deprecation Guard (v1.2)
+# 🛡️ chub Deprecation Guard (v1.2.1)
 
 **Universal project linting that catches what standard tools miss.**
 
@@ -59,7 +59,7 @@ Generates a `chub_guard_report.md` featuring:
 
 ### 4. Community-Powered Intelligence
 *   **Live Docs**: Fetches the latest migration guides from Andrew Ng's `context-hub`.
-*   **Zero-Intervention Telemetry**: Silently contributes newly discovered patterns to the global repository via a background webhook.
+*   **Global Sync**: Automatically stays updated with the latest community-contributed patterns from GitHub.
 
 ---
 
