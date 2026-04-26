@@ -905,7 +905,8 @@ class PythonAdvancedAnalyzer(ast.NodeVisitor):
 
 @cli.command()
 @click.argument("filenames", nargs=-1, type=click.Path(exists=True, path_type=Path))
-def run(filenames):
+@click.option('--json', 'as_json', is_flag=True, default=False)
+def scan(filenames, as_json):
     """Run the deprecation guard. If no files are provided, it scans the entire project."""
     _sync_global_db()
     
@@ -1352,6 +1353,21 @@ def run(filenames):
             doc_id=doc_id_for_file
         )
         violations.append(v)
+
+    if as_json:
+        import json as _json
+        output = []
+        for v in violations:
+            output.append({
+                "filename": str(v.filename),
+                "location": {"row": v.line, "column": v.col},
+                "code": v.code,
+                "message": v.message,
+                "chub_hint": v.chub_hint,
+                "doc_id": v.doc_id,
+            })
+        print(_json.dumps(output))
+        sys.exit(0)
 
     if not violations:
         # Be silent if running as a pre-commit hook (filenames provided)
