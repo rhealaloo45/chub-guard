@@ -1,53 +1,53 @@
 {
   "gemini/genai": {
     "patterns": [
-      "response = model.generate_content(, stream=True)",
-      "from google.generativeai import types",
-      "from google.ai import generativelanguage_v1",
-      "gemini-1.5-flash",
-      "import google.generativeai",
-      "from google.generativeai",
-      "gemini-1.5-pro",
-      "model.generate_content",
-      "genai.GenerationConfig",
-      "genai.configure(api_key=)",
-      "from google.api_core.exceptions import GoogleAPIError",
       "google.generativeai",
-      "response.text"
+      "from google.generativeai import types",
+      "model.generate_content",
+      "gemini-1.5-flash",
+      "from google.ai import generativelanguage_v1",
+      "genai.GenerationConfig",
+      "response = model.generate_content(, stream=True)",
+      "gemini-1.5-pro",
+      "import google.generativeai",
+      "from google.api_core.exceptions import GoogleAPIError",
+      "response.text",
+      "from google.generativeai",
+      "genai.configure(api_key=)"
     ],
     "last_updated": "2026-04-27"
   },
   "openai/package": {
     "patterns": [
-      "event.type == \"error\"",
-      "text-davinci-003",
+      "openai.ChatCompletion.create",
       "ChatCompletion",
       "client.chat.completions.create",
-      "ChatCompletion.create",
-      "openai.ChatCompletion.create",
       "openai.Completion.create",
-      "gpt-3.5-turbo-instruct"
+      "gpt-3.5-turbo-instruct",
+      "ChatCompletion.create",
+      "event.type == \"error\"",
+      "text-davinci-003"
     ],
     "last_updated": "2026-04-27"
   },
   "rich/package": {
     "patterns": [
-      "14.3.3",
-      "rich.print",
+      "14.3.1",
       "console.print(text, markup=False)",
-      "14.3.1"
+      "rich.print",
+      "14.3.3"
     ],
     "last_updated": "2026-04-27"
   },
   "langchain/package": {
     "patterns": [
-      "1.2.11",
-      "HuggingFaceHub",
-      "langchain.chat_models",
       "SequentialChain",
+      "from langchain.llms import OpenAI",
       "LLMChain",
-      "from langchain.chat_models import ChatOpenAI",
-      "from langchain.llms import OpenAI"
+      "HuggingFaceHub",
+      "1.2.11",
+      "langchain.chat_models",
+      "from langchain.chat_models import ChatOpenAI"
     ],
     "last_updated": "2026-04-27"
   },
@@ -64,24 +64,24 @@
   },
   "click/package": {
     "patterns": [
-      "8.2.0",
-      "click.__version__",
+      "click.parser",
       "importlib.metadata.version(\"click\")",
       "click.echo",
-      "click.parser"
+      "click.__version__",
+      "8.2.0"
     ],
     "last_updated": "2026-04-27"
   },
   "anthropic/package": {
     "patterns": [
-      "client.beta",
-      "client.completions.create",
       "Anthropic().completions.create",
-      "claude-instant",
-      "claude-2",
-      "message.content",
+      "client.completions.create",
       "HUMAN_PROMPT",
-      "AI_PROMPT"
+      "claude-2",
+      "AI_PROMPT",
+      "client.beta",
+      "message.content",
+      "claude-instant"
     ],
     "last_updated": "2026-04-27"
   },
@@ -93,66 +93,66 @@
   },
   "sqlalchemy/package": {
     "patterns": [
-      "create_engine(, future=True)",
+      "2.1.0b1",
       "engine.execute",
-      "2.0.48",
       "Session.scalars",
       "Session.execute",
-      "2.1.0b1"
+      "2.0.48",
+      "create_engine(, future=True)"
     ],
     "last_updated": "2026-04-27"
   },
   "alembic/package": {
     "patterns": [
-      "pyproject",
-      "alembic/env.py",
-      "alembic.ini",
-      "alembic/versions/",
-      "alembic init",
-      "generic",
-      "ALTER TABLE",
-      "async",
-      "1.15.0",
-      "pyproject.toml",
       "multidb",
-      "alembic/script.py.mako"
+      "pyproject",
+      "alembic init",
+      "1.15.0",
+      "async",
+      "ALTER TABLE",
+      "pyproject.toml",
+      "alembic/script.py.mako",
+      "generic",
+      "alembic/versions/",
+      "alembic/env.py",
+      "alembic.ini"
     ],
     "last_updated": "2026-04-27"
   },
   "torch/package": {
     "patterns": [
-      "v2.9.1",
       "import torch",
       "Stable (2.7.0)",
-      "2.10.0"
+      "2.10.0",
+      "v2.9.1"
     ],
     "last_updated": "2026-04-27"
   },
   "accelerate/package": {
     "patterns": [
       ".to(device)",
-      "accelerate launch",
       "loss.backward",
-      "if __name__ == \"__main__\":"
+      "if __name__ == \"__main__\":",
+      "accelerate launch"
     ],
     "last_updated": "2026-04-27"
   },
   "albumentations/package": {
     "patterns": [
-      "A.Compose",
       "2.0.0",
+      "A.Compose",
       "import albumentations"
     ],
     "last_updated": "2026-04-27"
   },
   "aiohttp/package": {
     "patterns": [
-      "aiohttp 4.0",
-      "web.Application",
       "resp.content",
       "resp.read",
+      "web.Application",
+      "resp.json",
       "resp.text",
-      "resp.json"
+      "aiohttp 4.0"
     ],
     "last_updated": "2026-04-27"
   },

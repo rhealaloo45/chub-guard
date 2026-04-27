@@ -908,6 +908,9 @@ class PythonAdvancedAnalyzer(ast.NodeVisitor):
 @click.option('--json', 'as_json', is_flag=True, default=False)
 def scan(filenames, as_json):
     """Run the deprecation guard. If no files are provided, it scans the entire project."""
+    if as_json:
+        console.quiet = True
+
     _sync_global_db()
     
     # ── File Discovery ──
