@@ -1,51 +1,55 @@
 {
   "gemini/genai": {
     "patterns": [
-      "from google.ai import generativelanguage_v1",
-      "from google.api_core.exceptions import GoogleAPIError",
-      "from google.generativeai",
+      "response = model.generate_content(, stream=True)",
       "from google.generativeai import types",
+      "from google.ai import generativelanguage_v1",
       "gemini-1.5-flash",
+      "import google.generativeai",
+      "from google.generativeai",
       "gemini-1.5-pro",
+      "model.generate_content",
       "genai.GenerationConfig",
       "genai.configure(api_key=)",
+      "from google.api_core.exceptions import GoogleAPIError",
       "google.generativeai",
-      "import google.generativeai",
-      "model.generate_content",
-      "response = model.generate_content(, stream=True)",
       "response.text"
     ],
-    "last_updated": "2026-04-24"
+    "last_updated": "2026-04-27"
   },
   "openai/package": {
     "patterns": [
+      "event.type == \"error\"",
+      "text-davinci-003",
       "ChatCompletion",
       "client.chat.completions.create",
-      "gpt-3.5-turbo-instruct",
+      "ChatCompletion.create",
       "openai.ChatCompletion.create",
       "openai.Completion.create",
-      "text-davinci-003"
+      "gpt-3.5-turbo-instruct"
     ],
-    "last_updated": "2026-04-01"
+    "last_updated": "2026-04-27"
   },
   "rich/package": {
     "patterns": [
+      "14.3.3",
       "rich.print",
-      "console.print(text, markup=False)"
+      "console.print(text, markup=False)",
+      "14.3.1"
     ],
-    "last_updated": "2026-04-23"
+    "last_updated": "2026-04-27"
   },
   "langchain/package": {
     "patterns": [
       "1.2.11",
       "HuggingFaceHub",
-      "LLMChain",
+      "langchain.chat_models",
       "SequentialChain",
+      "LLMChain",
       "from langchain.chat_models import ChatOpenAI",
-      "from langchain.llms import OpenAI",
-      "langchain.chat_models"
+      "from langchain.llms import OpenAI"
     ],
-    "last_updated": "2026-04-01"
+    "last_updated": "2026-04-27"
   },
   "pytest/package": {
     "patterns": [
@@ -61,22 +65,23 @@
   "click/package": {
     "patterns": [
       "8.2.0",
+      "click.__version__",
       "importlib.metadata.version(\"click\")",
-      "click.parser",
-      "click.__version__"
+      "click.echo",
+      "click.parser"
     ],
-    "last_updated": "2026-04-23"
+    "last_updated": "2026-04-27"
   },
   "anthropic/package": {
     "patterns": [
+      "client.beta",
       "client.completions.create",
       "Anthropic().completions.create",
-      "HUMAN_PROMPT",
-      "AI_PROMPT",
       "claude-instant",
-      "message.content",
       "claude-2",
-      "client.beta"
+      "message.content",
+      "HUMAN_PROMPT",
+      "AI_PROMPT"
     ],
     "last_updated": "2026-04-27"
   },
@@ -84,75 +89,78 @@
     "patterns": [
       "import React from \"react\""
     ],
-    "last_updated": "2026-04-24"
+    "last_updated": "2026-04-27"
   },
   "sqlalchemy/package": {
     "patterns": [
-      "Session.execute",
-      "Session.scalars",
+      "create_engine(, future=True)",
       "engine.execute",
-      "2.1.0b1",
       "2.0.48",
-      "create_engine(, future=True)"
+      "Session.scalars",
+      "Session.execute",
+      "2.1.0b1"
     ],
-    "last_updated": "2026-04-24"
+    "last_updated": "2026-04-27"
   },
   "alembic/package": {
     "patterns": [
       "pyproject",
-      "alembic.ini",
-      "async",
-      "ALTER TABLE",
-      "1.15.0",
-      "generic",
       "alembic/env.py",
-      "multidb",
-      "pyproject.toml",
+      "alembic.ini",
       "alembic/versions/",
       "alembic init",
+      "generic",
+      "ALTER TABLE",
+      "async",
+      "1.15.0",
+      "pyproject.toml",
+      "multidb",
       "alembic/script.py.mako"
     ],
-    "last_updated": "2026-04-24"
+    "last_updated": "2026-04-27"
   },
   "torch/package": {
     "patterns": [
-      "2.10.0",
       "v2.9.1",
-      "Stable (2.7.0)"
+      "import torch",
+      "Stable (2.7.0)",
+      "2.10.0"
     ],
-    "last_updated": "2026-04-24"
+    "last_updated": "2026-04-27"
   },
   "accelerate/package": {
     "patterns": [
-      "loss.backward",
       ".to(device)",
-      "if __name__ == \"__main__\":",
-      "accelerate launch"
+      "accelerate launch",
+      "loss.backward",
+      "if __name__ == \"__main__\":"
     ],
-    "last_updated": "2026-04-24"
+    "last_updated": "2026-04-27"
   },
   "albumentations/package": {
     "patterns": [
-      "2.0.0"
+      "A.Compose",
+      "2.0.0",
+      "import albumentations"
     ],
-    "last_updated": "2026-04-24"
+    "last_updated": "2026-04-27"
   },
   "aiohttp/package": {
     "patterns": [
-      "resp.text",
-      "resp.content",
       "aiohttp 4.0",
-      "resp.read",
       "web.Application",
+      "resp.content",
+      "resp.read",
+      "resp.text",
       "resp.json"
     ],
-    "last_updated": "2026-04-24"
+    "last_updated": "2026-04-27"
   },
   "angular/core": {
     "patterns": [
       ".update"
     ],
-    "last_updated": "2026-04-24"
+    "last_updated": "2026-04-27"
   },
   "test-doc-id": {
     "patterns": [
