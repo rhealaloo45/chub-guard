@@ -7,10 +7,14 @@ The goal of the tool is to bridge the gap between static analysis and rapidly ev
 
 ## Architecture Flow
 
-The tool executes via a pipeline during the `pre-commit` stage, or via manual CLI execution:
+The tool operates as a hybrid background engine that triggers through multiple entry points:
+
+1. **Git Commit Hook:** Intercepts changes during the `pre-commit` stage to prevent deprecated code from reaching the repository.
+2. **VS Code Extension:** Provides real-time, "as-you-type" feedback with red squiggles and a dedicated issues panel.
+3. **Manual CLI Execution:** Allows developers to run full-project audits on demand.
 
 ### 1. File Collection & Multi-Language Parsing
-When triggered, the script receives a list of staged files across multiple languages:
+When triggered, the engine analyzes either the staged files (Hook) or the active file/workspace (IDE):
 *   **Python:** Uses Python's built-in `ast` module to safely parse the source code and discover imports.
 *   **JS/TS/React:** Uses a robust Regex-based system to extract imports, identifying named imports, default imports, scoped packages (`@namespace/pkg`), and `require()` statements.
 *   **Java/C/C++:** Implements lightweight regex parsing to identify package imports (`import ...`, `#include`) and cross-references them against the global registry.
@@ -53,7 +57,9 @@ The tool maintains a "living" intelligence database:
 
 ### 6. Standard Linting & Reporting
 *   **Standard Integration:** Executes `ruff` natively for Python `pyupgrade` (UP) rules and merges results with custom `CHUB` violations.
-*   **Rich Reporting:** Generates a unified `chub_guard_report.md` with 🔴 Breaking, 🟡 Warning, and 🔵 Info metrics, alongside trend tracking.
+*   **Unified Diagnostics:** In VS Code, violations are surfaced as native Editor Diagnostics (red squiggles).
+*   **Interactive Side Panel:** A dedicated VS Code panel lists all violations, allowing developers to jump directly to the code or check off fixed items.
+*   **Markdown Reporting:** Generates a project-wide `chub_guard_report.md` with 🔴 Breaking, 🟡 Warning, and 🔵 Info metrics, alongside trend tracking.
 *   **Autonomous Agent Prompting:** Specifically formats code fixes into "Agent Prompt" blocks designed for one-click resolution by AI coding assistants.
 
 ## Edge Cases Handled

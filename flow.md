@@ -6,14 +6,16 @@ This document details the complete execution flow of the `chub-guard` system, fr
 flowchart TD
     %% ─── SETUP & INITIALIZATION ───
     subgraph Setup ["1. Installation & Initialization"]
-        A1["Developer runs npx chub-guard-init<br/>or pipx run chub-guard-init"] --> A2["Init Tool Copies Files:<br/>scripts/chub_guard.py<br/>.chub-docs/registry.json"]
-        A2 --> A3["Installs pre-commit Git Hook"]
-        A3 --> A4["Developer installs doc engine:<br/>npm install -g @aisuite/chub"]
+        A1["Developer installs VS Code Extension<br/>(chub-guard)"] -- Auto-Activation --> A2
+        A3["Developer runs npx chub-guard-init<br/>or pipx run chub-guard-init"] --> A2
+        A2["Init Tool Copies Files:<br/>scripts/chub_guard.py<br/>.chub-docs/registry.json"]
+        A2 --> A4["Installs pre-commit Git Hook"]
+        A4 --> A5["Developer installs doc engine:<br/>npm install -g @aisuite/chub"]
     end
 
     %% ─── THE 24-HOUR SYNC CYCLE ───
     subgraph Sync ["2. Community Intelligence Sync"]
-        B1(("Git Commit Trigger")) --> B2{"Has 24h passed since<br/>last Global Sync?"}
+        B1(("Git Commit OR IDE Save")) --> B2{"Has 24h passed since<br/>last Global Sync?"}
         B2 -- Yes --> B3["Fetch deprecations.json from<br/>rhealaloo45/chub-guard GitHub repo"]
         B3 --> B4["Merge global patterns into<br/>local historical_deprecations.json"]
         B4 --> B5["Update mtime timestamp"]
@@ -23,7 +25,7 @@ flowchart TD
 
     %% ─── DISCOVERY & PARSING ───
     subgraph Parsing ["3. Multi-Language Parsing & Resolution"]
-        B6 --> C1["Read all Staged Files"]
+        B6 --> C1["Read Staged Files (Hook)<br/>OR Active File (IDE)"]
         
         C1 --> C2_Py["Python ast<br/>Extract import"]
         C1 --> C2_JS["JS/TS Regex<br/>Extract require/import"]
@@ -66,14 +68,17 @@ flowchart TD
     subgraph Reporting ["6. Filtering & Reporting"]
         E6 --> F1{"Line has # noqa: CHUB<br/>or // noqa: CHUB ?"}
         F1 -- Yes --> F2["Suppress Violation"]
-        F1 -- No --> F3["Categorize Violations by Language:<br/>Python, JS/TS, Java, C/C++"]
+        F1 -- No --> F3["Categorize Violations by Language"]
         
         F3 --> F4["Run Native ruff for Python UP rules"]
-        F4 --> F5["Merge all violations into Rich Terminal Tables"]
-        F5 --> F6["Extract exact migration code blocks<br/>from documentation"]
-        F6 --> F7["Generate chub_guard_report.md"]
+        F4 --> F5["Extract exact migration code blocks<br/>from documentation"]
         
-        F7 --> F8{"Any Blocking Violations?"}
+        F5 --> G1{"Trigger Source?"}
+        
+        G1 -- "VS Code (Real-time)" --> G2["Red Squiggles on Code Lines<br/>Side Panel Violation List<br/>Click-to-Jump Navigation"]
+        G1 -- "Git Commit (Hook)" --> G3["Rich Terminal Tables<br/>Generate chub_guard_report.md"]
+        
+        G3 --> F8{"Any Blocking Violations?"}
         F8 -- Yes --> F9["sys.exit 1 - Commit Blocked"]
         F8 -- No --> F10["sys.exit 0 - Commit Passes"]
     end
@@ -81,7 +86,7 @@ flowchart TD
     %% ─── COMMUNITY PROMOTION ───
     subgraph Promotion ["7. Community Pattern Promotion"]
         P1(("Manual CLI Command<br/>promote-deprecations")) --> P2["Read historical_deprecations.json"]
-        P2 --> P3["Apply Quality Filters:<br/>Length > 5, no generic verbs"]
+        P2 --> P3["Apply Quality Filters"]
         P3 --> P4["Merge valid patterns into<br/>Root deprecations.json"]
         P4 --> P5["Developer pushes to GitHub<br/>helping the global community!"]
     end
@@ -89,5 +94,13 @@ flowchart TD
     %% Tie triggers to the main flow
     Setup --> B1
     F9 -.->|Developer Fixes Code| B1
+    G2 -.->|Manual Fix| B1
     F10 -.-> P1
 ```
+
+### Key System Updates
+- **Hybrid Entry Points**: The system now triggers either via a `git commit` (pre-commit hook) or automatically on file save in VS Code.
+- **Auto-Initialization**: The VS Code extension detects projects missing `chub-guard` and offers to run `chub-guard-init` automatically.
+- **Language-Agnostic Suppressions**: Explicit support for `// noqa: CHUB` in JS/TS files alongside Python's `# noqa: CHUB`.
+- **IDE Visualization**: Violations are now presented as standard VS Code diagnostics (red squiggles) and a dedicated side panel for easier navigation.
+

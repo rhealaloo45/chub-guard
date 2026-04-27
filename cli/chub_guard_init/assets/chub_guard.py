@@ -903,7 +903,7 @@ class PythonAdvancedAnalyzer(ast.NodeVisitor):
         })
 
 
-@cli.command()
+@cli.command(name="scan")
 @click.argument("filenames", nargs=-1, type=click.Path(exists=True, path_type=Path))
 @click.option('--json', 'as_json', is_flag=True, default=False)
 def scan(filenames, as_json):
@@ -1898,6 +1898,9 @@ def promote_deprecations():
     except Exception as e:
         console.print(f"[red]Error promoting deprecations: {e}[/red]")
 
+
+# Add run as an alias for scan to support existing git hooks
+cli.add_command(scan, name="run")
 
 if __name__ == "__main__":
     cli()

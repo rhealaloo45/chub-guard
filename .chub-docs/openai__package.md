@@ -429,7 +429,7 @@ Realtime pitfall: upstream documents that `error` events are delivered on the op
 
 ## Common Pitfalls
 
-- Do not copy old pre-1.x examples that call module-level APIs like `openai.ChatCompletion.create(...)`. For `2.x`, instantiate `OpenAI()` or `AsyncOpenAI()`.
+- Do not copy old pre-1.x examples that call module-level APIs like `openai.ChatCompletion.create(...)` or `ChatCompletion.create`. For `2.x`, instantiate `OpenAI()` or `AsyncOpenAI()`.
 - Prefer the Responses API for new code. Many third-party blog posts still default to older Chat Completions examples.
 - Do not parse webhook JSON before `unwrap()` or `verify_signature()`. The helper expects the raw request body string.
 - The default timeout is 10 minutes and default retry count is 2. Tight latency budgets often need smaller timeouts and explicit retry policy.

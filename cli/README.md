@@ -9,7 +9,7 @@
 Modern development moves fast. AI coding assistants often suggest **deprecated APIs**, and browser automation tools (Selenium, Playwright) change their signatures frequently. Standard linters miss these semantic deprecations, leading to production bugs and technical debt.
 
 ## 🚀 The Solution
-`chub-guard-init` is the official one-command setup for `chub-guard`. It installs a specialized git-hook that blocks deprecated patterns—from AI SDKs and Automation to Legacy Python—before they ever reach your codebase by syncing with live documentation.
+`chub-guard-init` is the official one-command setup for `chub-guard`. It installs a specialized git-hook and integrates with the **chub-guard VS Code extension** to block deprecated patterns—from AI SDKs and Automation to Legacy Python—before they ever reach your codebase by syncing with live documentation.
 
 ---
 

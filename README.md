@@ -8,7 +8,13 @@
 
 ## 🚀 Quick Start (Recommended)
 
-Set up the guard in any Python or JS project with a single command:
+The fastest way to use `chub-guard` is through the **VS Code Extension**, which provides real-time, "as-you-type" feedback.
+
+### 1. Install via VS Code (Easiest)
+Search for **`chub-guard`** in the VS Code Marketplace. Upon activation, it will automatically detect and set up the guard for your project.
+
+### 2. Manual CLI Setup
+Alternatively, set up the guard manually in any Python or JS project:
 
 **Using npm:**
 ```bash

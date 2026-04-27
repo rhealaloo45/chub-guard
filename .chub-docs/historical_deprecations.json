@@ -1,32 +1,32 @@
 {
   "gemini/genai": {
     "patterns": [
-      "genai.GenerationConfig",
-      "import google.generativeai",
-      "genai.configure(api_key=)",
+      "from google.ai import generativelanguage_v1",
       "from google.api_core.exceptions import GoogleAPIError",
-      "gemini-1.5-pro",
-      "google.generativeai",
-      "response = model.generate_content(, stream=True)",
-      "response.text",
-      "gemini-1.5-flash",
       "from google.generativeai",
       "from google.generativeai import types",
+      "gemini-1.5-flash",
+      "gemini-1.5-pro",
+      "genai.GenerationConfig",
+      "genai.configure(api_key=)",
+      "google.generativeai",
+      "import google.generativeai",
       "model.generate_content",
-      "from google.ai import generativelanguage_v1"
+      "response = model.generate_content(, stream=True)",
+      "response.text"
     ],
     "last_updated": "2026-04-24"
   },
   "openai/package": {
     "patterns": [
-      "openai.Completion.create",
-      "openai.ChatCompletion.create",
-      "text-davinci-003",
-      "gpt-3.5-turbo-instruct",
+      "ChatCompletion",
       "client.chat.completions.create",
-      "ChatCompletion"
+      "gpt-3.5-turbo-instruct",
+      "openai.ChatCompletion.create",
+      "openai.Completion.create",
+      "text-davinci-003"
     ],
-    "last_updated": "2026-04-24"
+    "last_updated": "2026-04-01"
   },
   "rich/package": {
     "patterns": [
@@ -69,16 +69,16 @@
   },
   "anthropic/package": {
     "patterns": [
-      "AI_PROMPT",
+      "client.completions.create",
       "Anthropic().completions.create",
       "HUMAN_PROMPT",
-      "claude-2",
+      "AI_PROMPT",
       "claude-instant",
-      "client.beta",
-      "client.completions.create",
-      "message.content"
+      "message.content",
+      "claude-2",
+      "client.beta"
     ],
-    "last_updated": "2026-04-01"
+    "last_updated": "2026-04-27"
   },
   "react/react": {
     "patterns": [
@@ -153,5 +153,11 @@
       ".update"
     ],
     "last_updated": "2026-04-24"
+  },
+  "test-doc-id": {
+    "patterns": [
+      "test_deprecated_pattern()"
+    ],
+    "last_updated": "2026-04-24T10:00:00"
   }
 }
