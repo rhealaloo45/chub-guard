@@ -2,7 +2,7 @@
   "name": "chub-guard",
   "displayName": "chub-guard",
   "description": "Detect deprecated AI SDK and automation patterns in real time",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publisher": "rhealaloo",
   "engines": {
     "vscode": "^1.75.0"
@@ -14,7 +14,7 @@
     "type": "git",
     "url": "https://github.com/rhealaloo45/chub-guard.git"
   },
-  "icon": "images/logo.jpg",
+  "icon": "images/logo.png",
   "license": "MIT",
   "activationEvents": [
     "onStartupFinished"
