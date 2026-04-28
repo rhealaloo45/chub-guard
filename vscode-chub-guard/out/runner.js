@@ -53,6 +53,7 @@ function runScan(context) {
                 cwd: workspaceRoot,
                 timeout: 60000,
                 maxBuffer: 1024 * 1024 * 5,
+                env: { ...process.env, PYTHONUTF8: '1' }
             }, (err, stdout, stderr) => {
                 // If python not found, try python3
                 if (err && err.code === 'ENOENT' && pyPath === 'python') {

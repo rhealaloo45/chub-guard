@@ -159,10 +159,10 @@ def get_imported_modules(file_path: Path) -> dict[str, list[tuple[int, int]]]:
         content = file_path.read_text(encoding="utf-8", errors="replace")
         tree = ast.parse(content)
     except SyntaxError as e:
-        console.print(f"[yellow]âš  Warning: Syntax error in {file_path}: {e}. Skipping AST parse.[/yellow]")
+        console.print(f"[yellow]⚠️ Warning: Syntax error in {file_path}: {e}. Skipping AST parse.[/yellow]")
         return {}
     except Exception as e:
-        console.print(f"[yellow]âš  Warning: Error parsing {file_path}: {e}. Skipping.[/yellow]")
+        console.print(f"[yellow]⚠️ Warning: Error parsing {file_path}: {e}. Skipping.[/yellow]")
         return {}
 
     modules = {}
@@ -194,7 +194,7 @@ def get_js_imports(file_path: Path) -> dict[str, list[tuple[int, int]]]:
     try:
         content = file_path.read_text(encoding="utf-8", errors="replace")
     except Exception as e:
-        console.print(f"[yellow]âš  Warning: Error reading {file_path}: {e}. Skipping.[/yellow]")
+        console.print(f"[yellow]⚠️ Warning: Error reading {file_path}: {e}. Skipping.[/yellow]")
         return {}
 
     modules = {}
@@ -259,7 +259,7 @@ def get_js_imports(file_path: Path) -> dict[str, list[tuple[int, int]]]:
     return modules
 
 
-# â”€â”€ GAP 1: Polarity-aware pattern extraction helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── GAP 1: Polarity-aware pattern extraction helper ─────────────────
 
 def _extract_from_doc(doc_path: Path) -> list[str]:
     """Core pattern-extraction logic used by both main doc and __full doc."""
@@ -286,7 +286,7 @@ def _extract_from_doc(doc_path: Path) -> list[str]:
         if not any(kw in line_lower for kw in NEGATIVE_KWS):
             continue
 
-        # Split on arrow/replacement markers â€” only take the LEFT side
+        # Split on arrow/replacement markers — only take the LEFT side
         working = line
         for marker in SPLIT_MARKERS:
             if marker.lower() in working.lower():
@@ -328,19 +328,19 @@ def _extract_from_doc(doc_path: Path) -> list[str]:
                 if clean_m and len(clean_m) > 3:
                     bad_patterns.append(clean_m)
 
-    # Strategy 3: Explicit âŒ code blocks
-    # Find fenced code blocks immediately preceded by âŒ/â›”/ðŸš« within 3 lines
+    # Strategy 3: Explicit ❌ code blocks
+    # Find fenced code blocks immediately preceded by ❌/⛔/🚫 within 3 lines
     lines_list = content.splitlines()
     i = 0
     while i < len(lines_list):
         line = lines_list[i]
-        if any(marker in line for marker in ["âŒ", "â›”", "ðŸš«", "**Don't", "**Incorrect", "**Deprecated"]):
+        if any(marker in line for marker in ["❌", "⛔", "🚫", "**Don't", "**Incorrect", "**Deprecated"]):
             # Look ahead for a code block within 3 lines
             for j in range(i + 1, min(i + 4, len(lines_list))):
                 if lines_list[j].strip().startswith("```"):
                     # Check no positive marker appears between i and j
                     between = " ".join(lines_list[i:j]).lower()
-                    if not any(pk in between for pk in ["âœ…", "**do ", "**correct", "**modern"]):
+                    if not any(pk in between for pk in ["✅", "**do ", "**correct", "**modern"]):
                         # Extract all identifiers from this code block
                         k = j + 1
                         while k < len(lines_list) and not lines_list[k].strip().startswith("```"):
@@ -378,11 +378,11 @@ def get_js_dynamic_deprecations(doc_path: Path) -> list[str]:
 
     NEGATIVE_KWS = ["incorrect", "deprecated", "legacy", "do not use",
                     "do not", "avoid", "prohibited", "removed", "old way",
-                    "don't use", "âŒ", "â›”", "ðŸš«"]
+                    "don't use", "❌", "⛔", "🚫"]
     POSITIVE_KWS  = ["instead", "use this", "correct", "modern", "new way",
-                     "recommended", "âœ…", "do this", "replacement"]
-    SPLIT_MARKERS = ["â†’", "->", " instead", " use ", "replace with",
-                     "âœ…", "correct:", "modern:"]
+                     "recommended", "✅", "do this", "replacement"]
+    SPLIT_MARKERS = ["→", "->", " instead", " use ", "replace with",
+                     "✅", "correct:", "modern:"]
 
     for line in content.splitlines():
         line_lower = line.lower()
@@ -394,7 +394,7 @@ def get_js_dynamic_deprecations(doc_path: Path) -> list[str]:
         if not any(kw in line_lower for kw in NEGATIVE_KWS):
             continue
 
-        # Split on arrow/replacement markers â€” only take the LEFT side
+        # Split on arrow/replacement markers — only take the LEFT side
         working = line
         for marker in SPLIT_MARKERS:
             if marker.lower() in working.lower():
@@ -445,16 +445,16 @@ def get_js_dynamic_deprecations(doc_path: Path) -> list[str]:
                 if clean_m and len(clean_m) > 3:
                     bad_patterns.append(clean_m)
 
-    # Strategy 3: Explicit âŒ code blocks
+    # Strategy 3: Explicit ❌ code blocks
     lines_list = content.splitlines()
     i = 0
     while i < len(lines_list):
         line = lines_list[i]
-        if any(marker in line for marker in ["âŒ", "â›”", "ðŸš«", "**Don't", "**Incorrect", "**Deprecated"]):
+        if any(marker in line for marker in ["❌", "⛔", "🚫", "**Don't", "**Incorrect", "**Deprecated"]):
             for j in range(i + 1, min(i + 4, len(lines_list))):
                 if lines_list[j].strip().startswith("```"):
                     between = " ".join(lines_list[i:j]).lower()
-                    if not any(pk in between for pk in ["âœ…", "**do ", "**correct", "**modern"]):
+                    if not any(pk in between for pk in ["✅", "**do ", "**correct", "**modern"]):
                         k = j + 1
                         while k < len(lines_list) and not lines_list[k].strip().startswith("```"):
                             for m in re.findall(r'`([^`]+)`|(\b[A-Z][a-zA-Z]+(?:\.[a-zA-Z]+)+)', lines_list[k]):
@@ -530,9 +530,9 @@ def analyze_js_file(f: Path, registry: dict, dynamic_patterns: dict) -> list[dic
                 })
 
     # Build a set of deprecated component names from all relevant patterns
-    # e.g. "openai.ChatCompletion.create" â†’ {"ChatCompletion", "create"}
-    # e.g. "from langchain.chat_models import ChatOpenAI" â†’ {"ChatOpenAI", "langchain.chat_models"}
-    deprecated_components = {}  # component_name â†’ (doc_id, full_pattern)
+    # e.g. "openai.ChatCompletion.create" → {"ChatCompletion", "create"}
+    # e.g. "from langchain.chat_models import ChatOpenAI" → {"ChatOpenAI", "langchain.chat_models"}
+    deprecated_components = {}  # component_name → (doc_id, full_pattern)
     for doc_id in relevant_doc_ids:
         patterns = dynamic_patterns.get(doc_id, [])
         for pattern in patterns:
@@ -601,7 +601,7 @@ def analyze_js_file(f: Path, registry: dict, dynamic_patterns: dict) -> list[dic
                         "_synth_mod": mod_key,
                     })
 
-        # GAP 4 â€” Strategy 3: Scan all lines for usage of deprecated component names
+        # GAP 4 — Strategy 3: Scan all lines for usage of deprecated component names
         for comp_name, (doc_id, full_pattern) in deprecated_components.items():
             # Check if this component name appears in the line as a usage
             # (not just as an import declaration)
@@ -694,13 +694,13 @@ def _get_severity(message: str) -> str:
     """Determine severity based on violation message content."""
     msg_lower = message.lower()
     if "deprecated" in msg_lower:
-        return "ðŸ”´ Breaking"
+        return "🔴 Breaking"
     elif "legacy" in msg_lower:
-        return "ðŸŸ¡ Warning"
-    return "ðŸ”µ Info"
+        return "🟡 Warning"
+    return "🔵 Info"
 
 
-# â”€â”€ GAP 2: Language-aware hint extraction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── GAP 2: Language-aware hint extraction ────────────────────────────
 
 def extract_chub_hint(doc_path: Path, lang: str = "python") -> str | None:
     if not doc_path.exists():
@@ -777,7 +777,7 @@ def extract_chub_hint(doc_path: Path, lang: str = "python") -> str | None:
         return None
 
 
-# â”€â”€ GAP 6: Historical deprecations database â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── GAP 6: Historical deprecations database ─────────────────────────
 
 def _load_historical_db() -> dict[str, list[str]]:
     """Load historical deprecation patterns from local cache + GitHub source."""
@@ -799,7 +799,7 @@ def _load_historical_db() -> dict[str, list[str]]:
             with urllib.request.urlopen(req, timeout=10) as response:
                 HISTORICAL_DB_PATH.write_bytes(response.read())
         except Exception:
-            pass  # Offline is fine â€” use local cache
+            pass  # Offline is fine — use local cache
 
     if HISTORICAL_DB_PATH.exists():
         try:
@@ -863,7 +863,7 @@ def _sync_global_db():
         
         HISTORICAL_DB_PATH.write_text(json.dumps(local_data, indent=2) + "\n", encoding="utf-8")
         os.utime(HISTORICAL_DB_PATH, (time.time(), time.time()))
-        console.print("[green]âœ“ Global database synced.[/green]")
+        console.print("[green]✓ Global database synced.[/green]")
     except Exception as e:
         console.print(f"[dim]Note: Could not sync global database (offline or URL moved): {e}[/dim]")
 
@@ -951,11 +951,24 @@ class PythonAdvancedAnalyzer(ast.NodeVisitor):
 @click.option('--root', 'project_root', type=click.Path(exists=True, path_type=Path), default=None)
 def scan(filenames, as_json, project_root):
     """Run the deprecation guard. If no files are provided, it scans the entire project."""
-    global REPO_ROOT, DOCS_DIR, REGISTRY_PATH
+    global REPO_ROOT, DOCS_DIR, REGISTRY_PATH, HISTORICAL_DB_PATH
+    # The script's own directory (inside the extension bundle)
+    SCRIPT_DIR = Path(__file__).resolve().parent
+    EXTENSION_ROOT = SCRIPT_DIR.parent  # vscode-chub-guard/
+    BUNDLED_DOCS = EXTENSION_ROOT / '.chub-docs'
+    
     if project_root:
         REPO_ROOT = Path(project_root).resolve()
-        DOCS_DIR = REPO_ROOT / '.chub-docs'
+        # Use the user's project .chub-docs if it exists, otherwise use the bundled ones
+        user_docs = REPO_ROOT / '.chub-docs'
+        if user_docs.exists() and (user_docs / 'registry.json').exists():
+            DOCS_DIR = user_docs
+        elif BUNDLED_DOCS.exists():
+            DOCS_DIR = BUNDLED_DOCS
+        else:
+            DOCS_DIR = user_docs  # Will be created during scan
         REGISTRY_PATH = DOCS_DIR / 'registry.json'
+        HISTORICAL_DB_PATH = DOCS_DIR / 'historical_deprecations.json'
     
     # Redirect all progress output to stderr when JSON is requested
     if as_json:
@@ -965,7 +978,7 @@ def scan(filenames, as_json, project_root):
 
     _sync_global_db()
     
-    # â”€â”€ File Discovery â”€â”€
+    # ── File Discovery ──
     input_files = list(filenames)
     if not input_files:
         # Default to all project files if no arguments provided
@@ -1002,9 +1015,9 @@ def scan(filenames, as_json, project_root):
     
     if not py_files and not js_files:
         if filenames:
-            console.print("[yellow]âš  No supported files found in the provided paths.[/yellow]")
+            console.print("[yellow]⚠️ No supported files found in the provided paths.[/yellow]")
         else:
-            console.print("[yellow]âš  No supported files found in the project root.[/yellow]")
+            console.print("[yellow]⚠️ No supported files found in the project root.[/yellow]")
         sys.exit(0)
 
     try:
@@ -1021,7 +1034,7 @@ def scan(filenames, as_json, project_root):
         registry = {}
     except Exception as e:
         # If file exists but is unreadable/corrupt, start with empty registry
-        console.print(f"[yellow]âš  Registry unreadable ({e}), starting with empty registry.[/yellow]")
+        console.print(f"[yellow]⚠️ Registry unreadable ({e}), starting with empty registry.[/yellow]")
         registry = {}
 
     file_to_modules = {}
@@ -1033,10 +1046,10 @@ def scan(filenames, as_json, project_root):
             if mod in registry:
                 all_needed_docs.add(registry[mod])
 
-    # â”€â”€ GAP 7: Cold start registry bootstrap â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── GAP 7: Cold start registry bootstrap ────────────────────────
     LOCAL_REGISTRY_MIN_ENTRIES = 3
     if len(registry) < LOCAL_REGISTRY_MIN_ENTRIES:
-        console.print("[dim]First run detected â€” bootstrapping registry from full project scan...[/dim]")
+        console.print("[dim]First run detected — bootstrapping registry from full project scan...[/dim]")
         global_lookup, _ = _load_global_chub_registry()
         
         if global_lookup:
@@ -1068,7 +1081,7 @@ def scan(filenames, as_json, project_root):
             except Exception:
                 pass
 
-    # â”€â”€ Registry gap warning â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Registry gap warning ─────────────────────────────────────────
 
     unknown_modules = set()
     for f in py_files:
@@ -1107,7 +1120,7 @@ def scan(filenames, as_json, project_root):
             for mod, doc_id in sorted(auto_resolved.items()):
                 registry[mod] = doc_id
                 all_needed_docs.add(doc_id)
-                console.print(f"[green]âœ“ Auto-resolved `{mod}` â†’ {doc_id} (from global chub registry)[/green]")
+                console.print(f"[green]✓ Auto-resolved `{mod}` → {doc_id} (from global chub registry)[/green]")
             # Persist the updated local registry
             try:
                 REGISTRY_PATH.write_text(json.dumps(registry, indent=2) + "\n", encoding="utf-8")
@@ -1128,9 +1141,9 @@ def scan(filenames, as_json, project_root):
 
         for mod in sorted(really_unknown):
             if mod in global_lookup:
-                console.print(f"[yellow]âš  `{mod}` has chub docs but isn't mapped locally. "
+                console.print(f"[yellow]⚠️ `{mod}` has chub docs but isn't mapped locally. "
                               f"Run: python scripts/chub_guard.py update-registry[/yellow]")
-            # else: chub has no docs for this module â€” silently skip
+            # else: chub has no docs for this module — silently skip
 
     py_needed_docs = set(all_needed_docs)
 
@@ -1140,7 +1153,7 @@ def scan(filenames, as_json, project_root):
     if not chub_available:
         console.print("[dim]Note: chub CLI not found. Using GitHub fallback for live documentation.[/dim]")
 
-    # â”€â”€ Version-aware doc fetching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Version-aware doc fetching ───────────────────────────────────
     pinned = get_pinned_versions()
     _, doc_id_to_langs = _load_global_chub_registry()
 
@@ -1221,7 +1234,7 @@ def scan(filenames, as_json, project_root):
                             with urllib.request.urlopen(req, timeout=15) as response:
                                 doc_path.write_bytes(response.read())
                             success = True
-                            console.print(f"[green]âœ“ Github fallback fetch ({lang}) successful for {doc_id}[/green]")
+                            console.print(f"[green]✓ Github fallback fetch ({lang}) successful for {doc_id}[/green]")
                             break
                     except Exception:
                         pass
@@ -1231,16 +1244,16 @@ def scan(filenames, as_json, project_root):
                     rel_path = doc_path.relative_to(REPO_ROOT)
                 except ValueError:
                     rel_path = doc_path
-                console.print(f"[green]âœ“ {preferred_lang.upper()} docs resolved ({tried_langs[-1]}) â†’ {rel_path}[/green]")
+                console.print(f"[green]✓ {preferred_lang.upper()} docs resolved ({tried_langs[-1]}) → {rel_path}[/green]")
             else:
-                console.print(f"[yellow]âš  Failed to resolve docs for {doc_id} in any of: {fetch_langs}[/yellow]")
+                console.print(f"[yellow]⚠️ Failed to resolve docs for {doc_id} in any of: {fetch_langs}[/yellow]")
 
-    # â”€â”€ Ruff linting (Python only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Ruff linting (Python only) ───────────────────────────────────
     ruff_output = []
     if py_files:
         if not shutil.which("ruff"):
             if not as_json:
-                console.print("[yellow]âš  Warning: ruff is not installed. Skipping Ruff-based checks.[/yellow]")
+                console.print("[yellow]⚠️ Warning: ruff is not installed. Skipping Ruff-based checks.[/yellow]")
                 console.print("[dim]Run `pip install ruff` to enable Python standard library upgrade checks.[/dim]")
             else:
                 sys.stderr.write("WARNING: ruff is not installed. Skipping Ruff-based checks.\n")
@@ -1274,7 +1287,7 @@ def scan(filenames, as_json, project_root):
         if doc_id in dynamic_patterns:
             js_dynamic_patterns[doc_id] = list(set(js_dynamic_patterns[doc_id] + dynamic_patterns[doc_id]))
 
-    # â”€â”€ GAP 6: Load historical DB and merge with current dynamic patterns â”€â”€
+    # ── GAP 6: Load historical DB and merge with current dynamic patterns ──
     hist_db = _load_historical_db()
     for doc_id in list(dynamic_patterns.keys()):
         current = dynamic_patterns[doc_id]
@@ -1362,7 +1375,7 @@ def scan(filenames, as_json, project_root):
                 if match:
                     add_synth(line_idx + 1, match.start() + 1, mod, msg)
 
-    # â”€â”€ JS/TS analysis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── JS/TS analysis ───────────────────────────────────────────────
     for f in js_files:
         js_violations = analyze_js_file(f, registry, js_dynamic_patterns)
         
@@ -1444,7 +1457,7 @@ def scan(filenames, as_json, project_root):
     all_chub_violations = ai_violations + js_chub_violations + c_chub_violations + java_chub_violations
 
     if not as_json:
-        # â”€â”€ Summary header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # ── Summary header ──────────────────────────────────────────────
         console.print()
         console.print(Rule("[bold red]DEPRECATED API USAGE DETECTED[/bold red]", style="red"))
         console.print()
@@ -1464,14 +1477,14 @@ def scan(filenames, as_json, project_root):
         summary_text.append(f" file{'s' if len(file_counts) != 1 else ''}\n", style="bold")
         console.print(summary_text)
 
-    # â”€â”€ AI SDK Violations table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    seen_hints = {}  # doc_id â†’ chub_hint (deduplicate)
+    # ── AI SDK Violations table ──────────────────────────────────────
+    seen_hints = {}  # doc_id → chub_hint (deduplicate)
     if ai_violations:
         ai_table = Table(
             show_header=True,
             header_style="bold green",
             border_style="dim",
-            title="[bold green]âœ¦ AI SDK Deprecations (Chub)[/bold green]",
+            title="[bold green]✦ AI SDK Deprecations (Chub)[/bold green]",
             pad_edge=True,
             expand=True,
         )
@@ -1493,13 +1506,13 @@ def scan(filenames, as_json, project_root):
             console.print(ai_table)
             console.print()
 
-    # â”€â”€ Python Violations table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Python Violations table ──────────────────────────────────────
     if python_violations:
         py_table = Table(
             show_header=True,
             header_style="bold cyan",
             border_style="dim",
-            title="[bold cyan]ðŸ Python Deprecations & Issues (Ruff)[/bold cyan]",
+            title="[bold cyan]🐍 Python Deprecations & Issues (Ruff)[/bold cyan]",
             pad_edge=True,
             expand=True,
         )
@@ -1514,13 +1527,13 @@ def scan(filenames, as_json, project_root):
         if not as_json:
             console.print(py_table)
 
-    # â”€â”€ JS/TS Violations table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── JS/TS Violations table ───────────────────────────────────────
     if js_chub_violations:
         js_table = Table(
             show_header=True,
             header_style="bold yellow",
             border_style="dim",
-            title="[bold yellow]ðŸŸ¨ JS/TS Deprecations (Chub)[/bold yellow]",
+            title="[bold yellow]🟨 JS/TS Deprecations (Chub)[/bold yellow]",
             pad_edge=True,
             expand=True,
         )
@@ -1547,7 +1560,7 @@ def scan(filenames, as_json, project_root):
             show_header=True,
             header_style="bold red",
             border_style="dim",
-            title="[bold red]âš™ C/C++ Deprecations (Chub)[/bold red]",
+            title="[bold red]⚙ C/C++ Deprecations (Chub)[/bold red]",
             pad_edge=True,
             expand=True,
         )
@@ -1574,7 +1587,7 @@ def scan(filenames, as_json, project_root):
             show_header=True,
             header_style="bold blue",
             border_style="dim",
-            title="[bold blue]â˜• Java Deprecations (Chub)[/bold blue]",
+            title="[bold blue]☕ Java Deprecations (Chub)[/bold blue]",
             pad_edge=True,
             expand=True,
         )
@@ -1596,7 +1609,7 @@ def scan(filenames, as_json, project_root):
             console.print(java_table)
             console.print()
 
-    # â”€â”€ Chub hints (one per SDK) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Chub hints (one per SDK) ────────────────────────────────────
     if seen_hints:
         if not as_json:
             console.print()
@@ -1619,14 +1632,14 @@ def scan(filenames, as_json, project_root):
             if not as_json:
                 console.print(Panel(
                     hint_panel,
-                    title=f"[bold green]âœ¦ {doc_id}[/bold green]",
+                    title=f"[bold green]✦ {doc_id}[/bold green]",
                     subtitle=f"[dim]chub get {doc_id} --lang {hint_lang_flag}[/dim]",
                     border_style="green",
                     padding=(1, 2),
                 ))
 
     if not as_json:
-        # â”€â”€ Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # ── Footer ──────────────────────────────────────────────────────
         console.print()
         console.print(Panel(
             "[bold]Commit blocked.[/bold] Fix the issues listed above and re-commit.\n"
@@ -1636,7 +1649,7 @@ def scan(filenames, as_json, project_root):
         ))
         console.print()
 
-    # â”€â”€ Generate markdown report (append to history) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Generate markdown report (append to history) ──────────────────
     report_path = REPO_ROOT / "chub_guard_report.md"
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -1650,14 +1663,14 @@ def scan(filenames, as_json, project_root):
 
     # Build this run's section
     run_lines = [
-        f"## ðŸ• Run: {timestamp}",
+        f"## 🕒 Run: {timestamp}",
         "",
         f"**{len(violations)}** issue{'s' if len(violations) != 1 else ''} found across **{len(file_counts)}** file{'s' if len(file_counts) != 1 else ''}.",
         "",
-        "### ðŸ›¡ï¸ Upgrade Readiness",
+        "### 🛡️ Upgrade Readiness",
         "Your project was scanned against the **LATEST** documentation from Context-Hub to ensure you are aware of upcoming deprecations and migration paths.",
         "",
-        "### ðŸ“¦ Local Environment",
+        "### 📦 Local Environment",
         "The following versions are currently installed/pinned in your project:",
     ]
     pinned = get_pinned_versions()
@@ -1668,23 +1681,23 @@ def scan(filenames, as_json, project_root):
         run_lines.append("- (No pinned versions detected, using latest documentation)")
     run_lines.append("")
 
-    # â”€â”€ Trend line â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Trend line ───────────────────────────────────────────────────
     prev_run_match = re.search(r"\*\*(\d+)\*\* issue.*?across \*\*(\d+)\*\* file", existing)
     if prev_run_match:
         prev_count = int(prev_run_match.group(1))
         delta = len(violations) - prev_count
         if delta < 0:
-            trend = f"â†“ {abs(delta)} fewer than last run"
+            trend = f"↓ {abs(delta)} fewer than last run"
         elif delta > 0:
-            trend = f"â†‘ {delta} more than last run"
+            trend = f"↑ {delta} more than last run"
         else:
-            trend = "â†’ same as last run"
+            trend = "→ same as last run"
         run_lines.append(f"*Trend: {trend}*")
         run_lines.append("")
 
     if ai_violations:
         run_lines += [
-            "### âœ¦ AI SDK Deprecations",
+            "### ✦ AI SDK Deprecations",
             "",
             "| # | File | Line | Severity | Issue |",
             "|---|------|------|----------|-------|",
@@ -1701,7 +1714,7 @@ def scan(filenames, as_json, project_root):
 
     if python_violations:
         run_lines += [
-            "### ðŸ Python Deprecations & Issues",
+            "### 🐍 Python Deprecations & Issues",
             "",
             "| # | File | Line | Code | Issue |",
             "|---|------|------|------|-------|",
@@ -1714,7 +1727,7 @@ def scan(filenames, as_json, project_root):
 
     if js_chub_violations:
         run_lines += [
-            "### ðŸŸ¨ JS/TS Deprecations (Chub)",
+            "### 🟨 JS/TS Deprecations (Chub)",
             "",
             "| # | File | Line | Severity | Issue |",
             "|---|------|------|----------|-------|",
@@ -1731,7 +1744,7 @@ def scan(filenames, as_json, project_root):
 
     if c_chub_violations:
         run_lines += [
-            "### âš™ C/C++ Deprecations (Chub)",
+            "### ⚙ C/C++ Deprecations (Chub)",
             "",
             "| # | File | Line | Severity | Issue |",
             "|---|------|------|----------|-------|",
@@ -1745,7 +1758,7 @@ def scan(filenames, as_json, project_root):
 
     if java_chub_violations:
         run_lines += [
-            "### â˜• Java Deprecations (Chub)",
+            "### ☕ Java Deprecations (Chub)",
             "",
             "| # | File | Line | Severity | Issue |",
             "|---|------|------|----------|-------|",
@@ -1782,7 +1795,7 @@ def scan(filenames, as_json, project_root):
 
             run_lines += [
                 "",
-                f"#### âœ¦ `{doc_id}`",
+                f"#### ✦ `{doc_id}`",
                 "",
                 f"```{_fence_lang}",
                 hint_code,
@@ -1793,7 +1806,7 @@ def scan(filenames, as_json, project_root):
 
     run_lines += [
         "",
-        "### ðŸ¤– Agent Prompt",
+        "### 🤖 Agent Prompt",
         "",
         "Copy this into your coding agent to fix all issues:",
         "",
@@ -1801,7 +1814,7 @@ def scan(filenames, as_json, project_root):
         "> For AI SDK deprecations use the recommended fix blocks above.",
         "> For Python deprecations apply standard pyupgrade fixes.",
         "> For JS/TS deprecations use the modern SDK patterns from chub docs.",
-        '> Do not change any logic â€” only fix deprecated patterns."',
+        '> Do not change any logic — only fix deprecated patterns."',
         "",
         "*To suppress a false positive, add `# noqa: UP<code>` to the line.*",
         "",
@@ -1811,16 +1824,16 @@ def scan(filenames, as_json, project_root):
 
     run_section = "\n".join(run_lines)
 
-    # Read existing report â€” extract previous run summary for compact history log
-    REPORT_TITLE = "# ðŸ›¡ï¸ Chub Guard Report\n\n"
+    # Read existing report — extract previous run summary for compact history log
+    REPORT_TITLE = "# 🛡️ Chub Guard Report\n\n"
     HISTORY_HEADER = "## Previous Runs\n\n"
     try:
         past_entries = []
         if existing:
             # Extract the previous "latest" run's timestamp + summary as a one-liner
-            prev_run = re.search(r"## ðŸ• Run: (.+)\n\n\*\*(\d+)\*\* issue.*?across \*\*(\d+)\*\* file", existing)
+            prev_run = re.search(r"## 🕒 Run: (.+)\n\n\*\*(\d+)\*\* issue.*?across \*\*(\d+)\*\* file", existing)
             if prev_run:
-                past_entries.append(f"- `{prev_run.group(1)}` â€” {prev_run.group(2)} issue(s) across {prev_run.group(3)} file(s)")
+                past_entries.append(f"- `{prev_run.group(1)}` — {prev_run.group(2)} issue(s) across {prev_run.group(3)} file(s)")
             # Carry forward any existing history entries
             history_match = re.search(r"## Previous Runs\n\n((?:- .+\n)*)", existing)
             if history_match:
@@ -1835,7 +1848,7 @@ def scan(filenames, as_json, project_root):
         if not as_json:
             console.print()
             console.print(Panel(
-                f"[bold green]ðŸ“Š REPORT GENERATED[/bold green]\n\n"
+                f"[bold green]📊 REPORT GENERATED[/bold green]\n\n"
                 f"A detailed markdown report has been saved to:\n"
                 f"[cyan]{report_path.resolve()}[/cyan]\n\n"
                 f"[dim]Use this report to fix issues across your entire project.[/dim]",
@@ -1844,7 +1857,7 @@ def scan(filenames, as_json, project_root):
             ))
     except Exception as e:
         if not as_json:
-            console.print(f"[yellow]âš  Could not write report: {e}[/yellow]")
+            console.print(f"[yellow]⚠️ Could not write report: {e}[/yellow]")
         else:
             sys.stderr.write(f"ERROR: Could not write report: {e}\n")
 
@@ -1929,17 +1942,17 @@ def update_registry():
                 new_entries[mod] = doc_id
 
     if not new_entries:
-        console.print("[green]âœ“ Local registry is up to date â€” all resolvable imports are mapped.[/green]")
+        console.print("[green]✓ Local registry is up to date — all resolvable imports are mapped.[/green]")
         return
 
     console.print(f"\n[cyan]Found {len(new_entries)} new mappings:[/cyan]")
     for k, v in sorted(new_entries.items()):
-        console.print(f"  [yellow]{k}[/yellow] â†’ [green]{v}[/green]")
+        console.print(f"  [yellow]{k}[/yellow] → [green]{v}[/green]")
 
     if click.confirm(f"\nAdd {len(new_entries)} entries to registry.json?"):
         registry.update(new_entries)
         REGISTRY_PATH.write_text(json.dumps(registry, indent=2) + "\n", encoding="utf-8")
-        console.print(f"[green]âœ“ Registry updated with {len(new_entries)} new entries.[/green]")
+        console.print(f"[green]✓ Registry updated with {len(new_entries)} new entries.[/green]")
 
 
 def _is_quality_pattern(pattern: str) -> bool:
@@ -1990,10 +2003,10 @@ def promote_deprecations():
         
         if merged_count > 0:
             root_db_path.write_text(json.dumps(root_db, indent=2) + "\n", encoding="utf-8")
-            console.print(f"[green]âœ“ Successfully promoted {merged_count} new patterns to root `deprecations.json`[/green]")
+            console.print(f"[green]✓ Successfully promoted {merged_count} new patterns to root `deprecations.json`[/green]")
             console.print("[dim]Next step: `git add deprecations.json && git commit -m 'Update global patterns' && git push`[/dim]")
         else:
-            console.print("[yellow]No new patterns to promote â€” root `deprecations.json` is already up to date.[/yellow]")
+            console.print("[yellow]No new patterns to promote — root `deprecations.json` is already up to date.[/yellow]")
             
     except Exception as e:
         console.print(f"[red]Error promoting deprecations: {e}[/red]")

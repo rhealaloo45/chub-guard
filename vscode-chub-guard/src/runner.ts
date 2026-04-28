@@ -32,6 +32,7 @@ export function runScan(context: vscode.ExtensionContext): Promise<Violation[]> 
         cwd: workspaceRoot,
         timeout: 60000,
         maxBuffer: 1024 * 1024 * 5,
+        env: { ...process.env, PYTHONUTF8: '1' }
       }, (err, stdout, stderr) => {
         // If python not found, try python3
         if (err && (err as any).code === 'ENOENT' && pyPath === 'python') {

@@ -66,7 +66,6 @@ export class ChubGuardPanel {
           const reportPath = path.join(workspaceRoot, 'chub_guard_report.md');
           try {
             const doc = await vscode.workspace.openTextDocument(reportPath);
-            await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
             const content = doc.getText();
             await vscode.env.clipboard.writeText(content);
             vscode.window.showInformationMessage('Report copied to clipboard. Paste into your coding agent to fix all issues.');
@@ -108,19 +107,54 @@ export class ChubGuardPanel {
       ? `<button onclick="vscode.postMessage({command:'resumeHook'})">Resume Hook</button>`
       : '';
 
-    const violationRows = violations.map((v, i) => {
-      const sevColor = v.severity === 'Breaking' ? '#f44336' : v.severity === 'Warning' ? '#ff9800' : '#2196f3';
-      const sevIcon = v.severity === 'Breaking' ? '🔴' : v.severity === 'Warning' ? '🟡' : '🔵';
+    // Group violations by filename
+    const grouped = new Map<string, { v: Violation, i: number }[]>();
+    violations.forEach((v, i) => {
+      const key = v.filename;
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push({ v, i });
+    });
+
+    // Build file-grouped HTML
+    const fileGroups = Array.from(grouped.entries()).map(([filename, items]) => {
+      const shortName = path.basename(filename);
+      const breakingCount = items.filter(x => x.v.severity === 'Breaking').length;
+      const warningCount = items.filter(x => x.v.severity === 'Warning').length;
+      const infoCount = items.filter(x => x.v.severity === 'Info').length;
+
+      const badges: string[] = [];
+      if (breakingCount > 0) badges.push(`<span class="badge breaking">${breakingCount} breaking</span>`);
+      if (warningCount > 0) badges.push(`<span class="badge warning">${warningCount} warning</span>`);
+      if (infoCount > 0) badges.push(`<span class="badge info">${infoCount} info</span>`);
+
+      const rows = items.map(({ v, i }) => {
+        const sevColor = v.severity === 'Breaking' ? '#f44336' : v.severity === 'Warning' ? '#ff9800' : '#2196f3';
+        const sevIcon = v.severity === 'Breaking' ? '🔴' : v.severity === 'Warning' ? '🟡' : '🔵';
+        return `
+          <div class="violation" id="v${i}">
+            <input type="checkbox" id="cb${i}" onchange="toggleDone(${i})">
+            <div class="violation-body">
+              <div class="violation-header">
+                <span class="sev" style="color:${sevColor}">${sevIcon} ${v.severity}</span>
+                <span class="line-link" onclick="jump(${i})">Line ${v.line}</span>
+              </div>
+              <span class="msg">${escapeHtml(v.message)}</span>
+              ${v.doc_id ? `<span class="doc">[${v.doc_id}]</span>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+
       return `
-        <div class="violation" id="v${i}">
-          <input type="checkbox" id="cb${i}" onchange="toggleDone(${i})">
-          <div class="violation-body">
-            <span class="sev" style="color:${sevColor}">${sevIcon} ${v.severity}</span>
-            <span class="file" onclick="jump(${i})">${v.filename}:${v.line}</span>
-            <span class="msg">${escapeHtml(v.message)}</span>
-            ${v.doc_id ? `<span class="doc">[${v.doc_id}]</span>` : ''}
-          </div>
-        </div>`;
+        <details class="file-group" open>
+          <summary class="file-header">
+            <span class="file-icon">📄</span>
+            <span class="file-name" title="${escapeHtml(filename)}">${escapeHtml(shortName)}</span>
+            <span class="file-count">${items.length}</span>
+            <div class="badge-row">${badges.join('')}</div>
+          </summary>
+          <div class="file-path">${escapeHtml(filename)}</div>
+          <div class="file-violations">${rows}</div>
+        </details>`;
     }).join('');
 
     const violationData = JSON.stringify(violations.map(v => ({
@@ -128,22 +162,50 @@ export class ChubGuardPanel {
       line: v.line
     })));
 
+    const fileCount = grouped.size;
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <style>
   body { font-family: var(--vscode-font-family); font-size: 13px; color: var(--vscode-foreground); padding: 12px; margin: 0; }
-  h2 { font-size: 14px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+  h2 { font-size: 14px; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+  .summary { font-size: 11px; color: var(--vscode-descriptionForeground); margin-bottom: 12px; }
   .count { color: #f44336; font-weight: 600; }
-  .violation { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--vscode-widget-border, #333); }
-  .violation.done { opacity: 0.4; text-decoration: line-through; }
+
+  /* File group dropdown */
+  .file-group { margin-bottom: 6px; border: 1px solid var(--vscode-widget-border, #333); border-radius: 5px; overflow: hidden; }
+  .file-header { padding: 7px 10px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 12px; list-style: none; background: var(--vscode-sideBar-background); user-select: none; }
+  .file-header::-webkit-details-marker { display: none; }
+  .file-header::before { content: '▶'; font-size: 9px; transition: transform 0.15s; color: var(--vscode-descriptionForeground); }
+  details[open] > .file-header::before { transform: rotate(90deg); }
+  .file-header:hover { background: var(--vscode-list-hoverBackground); }
+  .file-icon { font-size: 14px; }
+  .file-name { font-weight: 600; color: var(--vscode-textLink-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .file-count { font-size: 10px; background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); padding: 1px 6px; border-radius: 10px; font-weight: 600; min-width: 16px; text-align: center; }
+  .file-path { font-size: 10px; color: var(--vscode-descriptionForeground); padding: 2px 10px 4px; background: var(--vscode-editor-background); border-bottom: 1px solid var(--vscode-widget-border, #333); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-violations { padding: 0 10px; background: var(--vscode-editor-background); }
+
+  .badge-row { display: flex; gap: 4px; margin-left: auto; }
+  .badge { font-size: 9px; padding: 1px 5px; border-radius: 3px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+  .badge.breaking { background: rgba(244,67,54,0.15); color: #f44336; }
+  .badge.warning { background: rgba(255,152,0,0.15); color: #ff9800; }
+  .badge.info { background: rgba(33,150,243,0.15); color: #2196f3; }
+
+  /* Individual violations inside file groups */
+  .violation { display: flex; align-items: flex-start; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--vscode-widget-border, #222); }
+  .violation:last-child { border-bottom: none; }
+  .violation.done { opacity: 0.35; }
+  .violation.done .msg { text-decoration: line-through; }
   .violation-body { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+  .violation-header { display: flex; align-items: center; gap: 8px; }
   .sev { font-size: 11px; font-weight: 600; }
-  .file { color: var(--vscode-textLink-foreground, #4fc3f7); cursor: pointer; font-size: 12px; text-decoration: underline; }
-  .file:hover { opacity: 0.8; }
-  .msg { font-size: 12px; color: var(--vscode-foreground); }
-  .doc { font-size: 11px; color: var(--vscode-descriptionForeground); }
+  .line-link { color: var(--vscode-textLink-foreground, #4fc3f7); cursor: pointer; font-size: 11px; text-decoration: underline; font-weight: 600; }
+  .line-link:hover { opacity: 0.8; }
+  .msg { font-size: 12px; color: var(--vscode-foreground); line-height: 1.4; }
+  .doc { font-size: 10px; color: var(--vscode-descriptionForeground); }
+
   .actions { display: flex; gap: 8px; margin: 14px 0; flex-wrap: wrap; }
   button { padding: 5px 12px; font-size: 12px; border: 1px solid var(--vscode-button-border, transparent); border-radius: 3px; cursor: pointer; background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
   button:hover { background: var(--vscode-button-hoverBackground); }
@@ -157,13 +219,14 @@ export class ChubGuardPanel {
 </head>
 <body>
 <h2>🛡️ chub-guard &nbsp;<span class="count">${violations.length} issue${violations.length !== 1 ? 's' : ''}</span></h2>
+<div class="summary">${violations.length > 0 ? `across ${fileCount} file${fileCount !== 1 ? 's' : ''}` : ''}</div>
 
 ${violations.length === 0
   ? '<div class="empty">✓ No deprecated patterns detected.</div>'
-  : `<div id="violations">${violationRows}</div>
+  : `<div id="violations">${fileGroups}</div>
      <div class="actions">
        <button onclick="fixManually()">Fix Manually</button>
-       <button class="secondary" onclick="useLLM()">Use LLM</button>
+       <button class="secondary" onclick="useLLM()">📋 Copy to fix with LLM</button>
      </div>`
 }
 
@@ -188,7 +251,6 @@ ${violations.length === 0
   }
 
   function fixManually() {
-    // Jump to first unchecked violation
     const unchecked = violations.findIndex((_, i) => {
       const cb = document.getElementById('cb' + i);
       return cb && !cb.checked;
@@ -213,7 +275,6 @@ ${violations.length === 0
     const cb = document.getElementById('cb' + idx);
     if (row && cb) {
       row.classList.toggle('done', cb.checked);
-      // Auto-jump to next unchecked
       if (cb.checked) {
         const next = violations.findIndex((_, i) => i > idx && !document.getElementById('cb' + i)?.checked);
         if (next >= 0) jump(next);
