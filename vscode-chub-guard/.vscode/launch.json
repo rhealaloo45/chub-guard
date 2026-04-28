@@ -6,12 +6,12 @@
       "type": "extensionHost",
       "request": "launch",
       "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}/vscode-chub-guard"
+        "--extensionDevelopmentPath=c:\\Users\\Rhea\\Desktop\\Tasks\\chub_use_case\\cli_tool\\vscode-chub-guard"
       ],
       "outFiles": [
-        "${workspaceFolder}/vscode-chub-guard/out/**/*.js"
+        "c:\\Users\\Rhea\\Desktop\\Tasks\\chub_use_case\\cli_tool\\vscode-chub-guard\\out/**/*.js"
       ],
-      "preLaunchTask": "npm: compile"
+      "preLaunchTask": "compile"
     }
   ]
 }

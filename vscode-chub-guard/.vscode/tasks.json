@@ -2,13 +2,12 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "type": "npm",
-      "script": "compile",
-      "path": "vscode-chub-guard",
+      "label": "compile",
+      "type": "shell",
+      "command": "npx tsc -p ./",
       "problemMatcher": "$tsc",
-      "isBackground": true,
       "presentation": {
-        "reveal": "never"
+        "reveal": "silent"
       },
       "group": {
         "kind": "build",

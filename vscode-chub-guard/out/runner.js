@@ -15,41 +15,58 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.runScan = void 0;
+exports.runScan = runScan;
 const child_process_1 = require("child_process");
 const path = __importStar(require("path"));
 const vscode = __importStar(require("vscode"));
-function runScan() {
+function runScan(context) {
     return new Promise((resolve) => {
         const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         if (!workspaceRoot)
             return resolve([]);
-        let pythonPath = vscode.workspace.getConfiguration('chubGuard').get('pythonPath', 'python');
-        const guardScript = path.join(workspaceRoot, 'scripts', 'chub_guard.py');
-        const args = [guardScript, 'scan', '--json'];
+        const pythonPath = vscode.workspace.getConfiguration('chubGuard').get('pythonPath', 'python');
+        // Always use the script bundled inside the extension itself.
+        // This means the user never needs to have chub_guard.py in their project.
+        const guardScript = path.join(context.extensionPath, 'scripts', 'chub_guard.py');
+        // --root tells the scanner which directory to scan (the user's project)
+        const args = [guardScript, 'scan', '--json', '--root', workspaceRoot];
         const runWithPython = (pyPath) => {
             (0, child_process_1.execFile)(pyPath, args, {
                 cwd: workspaceRoot,
-                timeout: 30000,
+                timeout: 60000,
                 maxBuffer: 1024 * 1024 * 5,
             }, (err, stdout, stderr) => {
-                // If it failed due to python not found, and we used 'python', try 'python3'
+                // If python not found, try python3
                 if (err && err.code === 'ENOENT' && pyPath === 'python') {
                     return runWithPython('python3');
+                }
+                // If python3 also not found, tell the user
+                if (err && err.code === 'ENOENT' && pyPath === 'python3') {
+                    vscode.window.showErrorMessage('chub-guard: Python not found. Please install Python and ensure it is on your PATH, or set chubGuard.pythonPath in settings.');
+                    return resolve([]);
                 }
                 if (!stdout || !stdout.trim())
                     return resolve([]);
                 try {
-                    // The JSON is always printed as a single line at the end by json.dumps(output)
-                    // Find the last line that starts with [
+                    // Find JSON array in output (may have rich terminal output before it)
                     const lines = stdout.trim().split('\n');
                     let jsonStr = '';
                     for (let i = lines.length - 1; i >= 0; i--) {
@@ -59,7 +76,7 @@ function runScan() {
                         }
                     }
                     if (!jsonStr) {
-                        // Fallback to match everything between the outermost brackets
+                        // Fallback: match everything between the outermost brackets
                         const firstIdx = stdout.indexOf('[');
                         const lastIdx = stdout.lastIndexOf(']');
                         if (firstIdx !== -1 && lastIdx !== -1 && lastIdx > firstIdx) {
@@ -83,7 +100,7 @@ function runScan() {
                     resolve(violations);
                 }
                 catch (e) {
-                    console.error("Failed to parse chub-guard JSON", e);
+                    console.error('chub-guard: Failed to parse scan output', e);
                     resolve([]);
                 }
             });
@@ -91,7 +108,6 @@ function runScan() {
         runWithPython(pythonPath);
     });
 }
-exports.runScan = runScan;
 function getSeverity(message) {
     const lower = message.toLowerCase();
     if (lower.includes('deprecated'))

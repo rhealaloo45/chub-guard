@@ -951,11 +951,24 @@ class PythonAdvancedAnalyzer(ast.NodeVisitor):
 @click.option('--root', 'project_root', type=click.Path(exists=True, path_type=Path), default=None)
 def scan(filenames, as_json, project_root):
     """Run the deprecation guard. If no files are provided, it scans the entire project."""
-    global REPO_ROOT, DOCS_DIR, REGISTRY_PATH
+    global REPO_ROOT, DOCS_DIR, REGISTRY_PATH, HISTORICAL_DB_PATH
+    # The script's own directory (inside the extension bundle)
+    SCRIPT_DIR = Path(__file__).resolve().parent
+    EXTENSION_ROOT = SCRIPT_DIR.parent  # vscode-chub-guard/
+    BUNDLED_DOCS = EXTENSION_ROOT / '.chub-docs'
+    
     if project_root:
         REPO_ROOT = Path(project_root).resolve()
-        DOCS_DIR = REPO_ROOT / '.chub-docs'
+        # Use the user's project .chub-docs if it exists, otherwise use the bundled ones
+        user_docs = REPO_ROOT / '.chub-docs'
+        if user_docs.exists() and (user_docs / 'registry.json').exists():
+            DOCS_DIR = user_docs
+        elif BUNDLED_DOCS.exists():
+            DOCS_DIR = BUNDLED_DOCS
+        else:
+            DOCS_DIR = user_docs  # Will be created during scan
         REGISTRY_PATH = DOCS_DIR / 'registry.json'
+        HISTORICAL_DB_PATH = DOCS_DIR / 'historical_deprecations.json'
     
     # Redirect all progress output to stderr when JSON is requested
     if as_json:
