@@ -1,11 +1,24 @@
-import ast
+import sys
 import os
+
+# Pre-flight check for mandatory dependencies
+try:
+    import click
+    import rich
+except ImportError:
+    sys.stderr.write("ERROR: Missing mandatory dependencies 'click' or 'rich'.\n")
+    sys.stderr.write("Please install them using: pip install click rich\n")
+    # If we are in JSON mode, emit an empty list so the extension doesn't hang
+    if "--json" in sys.argv:
+        sys.stdout.write("[]")
+    sys.exit(1)
+
+import ast
 import re
 import datetime
 import json
 import shutil
 import subprocess
-import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -55,6 +68,7 @@ STDLIB_MODS = {"os", "sys", "re", "json", "ast", "time", "math",
 
 # Global chub registry installed at ~/.chub/sources/default/registry.json
 CHUB_GLOBAL_REGISTRY = Path.home() / ".chub" / "sources" / "default" / "registry.json"
+CHUB_REMOTE_REGISTRY_URL = "https://raw.githubusercontent.com/andrewyng/context-hub/main/content/registry.json"
 
 # GAP 6: Historical deprecations database paths
 HISTORICAL_DB_PATH = DOCS_DIR / "historical_deprecations.json"
@@ -62,15 +76,43 @@ HISTORICAL_DB_URL = "https://raw.githubusercontent.com/rhealaloo45/chub-guard/ma
 
 
 def _load_global_chub_registry() -> tuple[dict[str, str], dict[str, list[str]]]:
-    """Load the global chub registry and build lookups.
+    """Load the global chub registry and build lookups. Fetches from GitHub if missing.
     
     Returns:
         tuple: (module_name → doc_id, doc_id → [languages])
     """
-    if not CHUB_GLOBAL_REGISTRY.exists():
+    data = None
+    
+    # Try local first
+    if CHUB_GLOBAL_REGISTRY.exists():
+        try:
+            data = json.loads(CHUB_GLOBAL_REGISTRY.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    # Fetch from remote if local missing or corrupted
+    if not data:
+        try:
+            req = urllib.request.Request(
+                CHUB_REMOTE_REGISTRY_URL,
+                headers={'User-Agent': 'chub-guard/1.2.1'}
+            )
+            with urllib.request.urlopen(req, timeout=10) as response:
+                content = response.read()
+                data = json.loads(content.decode("utf-8"))
+                # Cache it locally for next time
+                try:
+                    CHUB_GLOBAL_REGISTRY.parent.mkdir(parents=True, exist_ok=True)
+                    CHUB_GLOBAL_REGISTRY.write_bytes(content)
+                except Exception:
+                    pass
+        except Exception:
+            return {}, {}
+
+    if not data:
         return {}, {}
+
     try:
-        data = json.loads(CHUB_GLOBAL_REGISTRY.read_text(encoding="utf-8"))
         docs = data.get("docs", [])
         lookup = {}
         doc_langs = {}
@@ -117,10 +159,10 @@ def get_imported_modules(file_path: Path) -> dict[str, list[tuple[int, int]]]:
         content = file_path.read_text(encoding="utf-8", errors="replace")
         tree = ast.parse(content)
     except SyntaxError as e:
-        console.print(f"[yellow]⚠ Warning: Syntax error in {file_path}: {e}. Skipping AST parse.[/yellow]")
+        console.print(f"[yellow]⚠️ Warning: Syntax error in {file_path}: {e}. Skipping AST parse.[/yellow]")
         return {}
     except Exception as e:
-        console.print(f"[yellow]⚠ Warning: Error parsing {file_path}: {e}. Skipping.[/yellow]")
+        console.print(f"[yellow]⚠️ Warning: Error parsing {file_path}: {e}. Skipping.[/yellow]")
         return {}
 
     modules = {}
@@ -152,7 +194,7 @@ def get_js_imports(file_path: Path) -> dict[str, list[tuple[int, int]]]:
     try:
         content = file_path.read_text(encoding="utf-8", errors="replace")
     except Exception as e:
-        console.print(f"[yellow]⚠ Warning: Error reading {file_path}: {e}. Skipping.[/yellow]")
+        console.print(f"[yellow]⚠️ Warning: Error reading {file_path}: {e}. Skipping.[/yellow]")
         return {}
 
     modules = {}
@@ -228,7 +270,7 @@ def _extract_from_doc(doc_path: Path) -> list[str]:
 
     NEGATIVE_KWS = ["incorrect", "deprecated", "legacy", "do not use",
                     "do not", "avoid", "prohibited", "removed", "old way",
-                    "don't use", "❌", "⛔", "🚫"]
+                    "don't use", "❌", "⛔", "🚫", "instead", "copy", "warn", "pitfall"]
     POSITIVE_KWS  = ["instead", "use this", "correct", "modern", "new way",
                      "recommended", "✅", "do this", "replacement"]
     SPLIT_MARKERS = ["→", "->", " instead", " use ", "replace with",
@@ -906,10 +948,33 @@ class PythonAdvancedAnalyzer(ast.NodeVisitor):
 @cli.command(name="scan")
 @click.argument("filenames", nargs=-1, type=click.Path(exists=True, path_type=Path))
 @click.option('--json', 'as_json', is_flag=True, default=False)
-def scan(filenames, as_json):
+@click.option('--root', 'project_root', type=click.Path(exists=True, path_type=Path), default=None)
+def scan(filenames, as_json, project_root):
     """Run the deprecation guard. If no files are provided, it scans the entire project."""
+    global REPO_ROOT, DOCS_DIR, REGISTRY_PATH, HISTORICAL_DB_PATH
+    # The script's own directory (inside the extension bundle)
+    SCRIPT_DIR = Path(__file__).resolve().parent
+    EXTENSION_ROOT = SCRIPT_DIR.parent  # vscode-chub-guard/
+    BUNDLED_DOCS = EXTENSION_ROOT / '.chub-docs'
+    
+    if project_root:
+        REPO_ROOT = Path(project_root).resolve()
+        # Use the user's project .chub-docs if it exists, otherwise use the bundled ones
+        user_docs = REPO_ROOT / '.chub-docs'
+        if user_docs.exists() and (user_docs / 'registry.json').exists():
+            DOCS_DIR = user_docs
+        elif BUNDLED_DOCS.exists():
+            DOCS_DIR = BUNDLED_DOCS
+        else:
+            DOCS_DIR = user_docs  # Will be created during scan
+        REGISTRY_PATH = DOCS_DIR / 'registry.json'
+        HISTORICAL_DB_PATH = DOCS_DIR / 'historical_deprecations.json'
+    
+    # Redirect all progress output to stderr when JSON is requested
     if as_json:
-        console.quiet = True
+        global console
+        from rich.console import Console as _Console
+        console = _Console(stderr=True)
 
     _sync_global_db()
     
@@ -936,7 +1001,7 @@ def scan(filenames, as_json):
         # Check if any part of the path is in ignored_patterns or starts with a dot (except current dir '.')
         try:
             rel_parts = f.resolve().relative_to(REPO_ROOT.resolve()).parts
-        except ValueError:
+        except (ValueError, RuntimeError):
             rel_parts = f.parts
             
         if any(p in ignored_patterns or (p.startswith(".") and p != ".") for p in rel_parts):
@@ -950,9 +1015,9 @@ def scan(filenames, as_json):
     
     if not py_files and not js_files:
         if filenames:
-            console.print("[yellow]⚠ No supported files found in the provided paths.[/yellow]")
+            console.print("[yellow]⚠️ No supported files found in the provided paths.[/yellow]")
         else:
-            console.print("[yellow]⚠ No supported files found in the project root.[/yellow]")
+            console.print("[yellow]⚠️ No supported files found in the project root.[/yellow]")
         sys.exit(0)
 
     try:
@@ -969,7 +1034,7 @@ def scan(filenames, as_json):
         registry = {}
     except Exception as e:
         # If file exists but is unreadable/corrupt, start with empty registry
-        console.print(f"[yellow]⚠ Registry unreadable ({e}), starting with empty registry.[/yellow]")
+        console.print(f"[yellow]⚠️ Registry unreadable ({e}), starting with empty registry.[/yellow]")
         registry = {}
 
     file_to_modules = {}
@@ -986,12 +1051,20 @@ def scan(filenames, as_json):
     if len(registry) < LOCAL_REGISTRY_MIN_ENTRIES:
         console.print("[dim]First run detected — bootstrapping registry from full project scan...[/dim]")
         global_lookup, _ = _load_global_chub_registry()
+        
         if global_lookup:
             for pattern in ["**/*.py", "**/*.js", "**/*.ts", "**/*.jsx", "**/*.tsx", "**/*.java", "**/*.c", "**/*.cpp"]:
                 for f in REPO_ROOT.rglob(pattern.split("/")[-1]):
-                    parts = f.relative_to(REPO_ROOT).parts
+                    # Robust path resolution for Windows case-insensitivity
+                    try:
+                        f_abs = f.resolve()
+                        root_abs = REPO_ROOT.resolve()
+                        parts = f_abs.relative_to(root_abs).parts
+                    except (ValueError, RuntimeError):
+                        parts = f.parts
+                        
                     if any(p.startswith(".") or p in (
-                        "node_modules", "venv", ".venv", "__pycache__"
+                        "node_modules", "venv", ".venv", "__pycache__", "dist", "build", ".git"
                     ) for p in parts):
                         continue
                     try:
@@ -1068,7 +1141,7 @@ def scan(filenames, as_json):
 
         for mod in sorted(really_unknown):
             if mod in global_lookup:
-                console.print(f"[yellow]⚠ `{mod}` has chub docs but isn't mapped locally. "
+                console.print(f"[yellow]⚠️ `{mod}` has chub docs but isn't mapped locally. "
                               f"Run: python scripts/chub_guard.py update-registry[/yellow]")
             # else: chub has no docs for this module — silently skip
 
@@ -1173,23 +1246,29 @@ def scan(filenames, as_json):
                     rel_path = doc_path
                 console.print(f"[green]✓ {preferred_lang.upper()} docs resolved ({tried_langs[-1]}) → {rel_path}[/green]")
             else:
-                console.print(f"[yellow]⚠ Failed to resolve docs for {doc_id} in any of: {fetch_langs}[/yellow]")
+                console.print(f"[yellow]⚠️ Failed to resolve docs for {doc_id} in any of: {fetch_langs}[/yellow]")
 
     # ── Ruff linting (Python only) ───────────────────────────────────
     ruff_output = []
     if py_files:
         if not shutil.which("ruff"):
-            console.print("[red]Error: ruff is not installed. Run `pip install ruff`[/red]")
-            sys.exit(1)
-
-        cmd = ["ruff", "check", "--select", "UP", "--output-format", "json"] + [str(f) for f in py_files]
-        res = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        
-        try:
-            ruff_output = json.loads(res.stdout) if res.stdout.strip() else []
-        except json.JSONDecodeError:
-            console.print(f"[red]Error: Failed to parse ruff output: {res.stdout}[/red]")
-            sys.exit(1)
+            if not as_json:
+                console.print("[yellow]⚠️ Warning: ruff is not installed. Skipping Ruff-based checks.[/yellow]")
+                console.print("[dim]Run `pip install ruff` to enable Python standard library upgrade checks.[/dim]")
+            else:
+                sys.stderr.write("WARNING: ruff is not installed. Skipping Ruff-based checks.\n")
+            ruff_output = []
+        else:
+            cmd = ["ruff", "check", "--select", "UP", "--output-format", "json"] + [str(f) for f in py_files]
+            try:
+                res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+                ruff_output = json.loads(res.stdout) if res.stdout.strip() else []
+            except (json.JSONDecodeError, Exception) as e:
+                if not as_json:
+                    console.print(f"[red]Error: Failed to run or parse ruff: {e}[/red]")
+                else:
+                    sys.stderr.write(f"ERROR: Ruff failed: {e}\n")
+                ruff_output = []
 
     # Build dynamic patterns (GAP 1: now uses polarity-aware extraction)
     dynamic_patterns = {}
@@ -1357,22 +1436,13 @@ def scan(filenames, as_json):
         )
         violations.append(v)
 
-    if as_json:
-        import json as _json
-        output = []
-        for v in violations:
-            output.append({
-                "filename": str(v.filename),
-                "location": {"row": v.line, "column": v.col},
-                "code": v.code,
-                "message": v.message,
-                "chub_hint": v.chub_hint,
-                "doc_id": v.doc_id,
-            })
-        print(_json.dumps(output))
-        sys.exit(0)
+    # --- JSON Output handled later ---
+
 
     if not violations:
+        if as_json:
+            print("[]")
+            sys.exit(0)
         # Be silent if running as a pre-commit hook (filenames provided)
         # to match standard linter behavior.
         if not filenames:
@@ -1386,10 +1456,11 @@ def scan(filenames, as_json):
     python_violations = [v for v in violations if v.code != "CHUB"]
     all_chub_violations = ai_violations + js_chub_violations + c_chub_violations + java_chub_violations
 
-    # ── Summary header ──────────────────────────────────────────────
-    console.print()
-    console.print(Rule("[bold red]DEPRECATED API USAGE DETECTED[/bold red]", style="red"))
-    console.print()
+    if not as_json:
+        # ── Summary header ──────────────────────────────────────────────
+        console.print()
+        console.print(Rule("[bold red]DEPRECATED API USAGE DETECTED[/bold red]", style="red"))
+        console.print()
 
     # Count violations per file for the header
     file_counts = {}
@@ -1397,13 +1468,14 @@ def scan(filenames, as_json):
         fname = str(v.filename)
         file_counts[fname] = file_counts.get(fname, 0) + 1
 
-    summary_text = Text()
-    summary_text.append(f"  Found ", style="bold")
-    summary_text.append(f"{len(violations)}", style="bold red")
-    summary_text.append(f" issue{'s' if len(violations) != 1 else ''} across ", style="bold")
-    summary_text.append(f"{len(file_counts)}", style="bold red")
-    summary_text.append(f" file{'s' if len(file_counts) != 1 else ''}\n", style="bold")
-    console.print(summary_text)
+    if not as_json:
+        summary_text = Text()
+        summary_text.append(f"  Found ", style="bold")
+        summary_text.append(f"{len(violations)}", style="bold red")
+        summary_text.append(f" issue{'s' if len(violations) != 1 else ''} across ", style="bold")
+        summary_text.append(f"{len(file_counts)}", style="bold red")
+        summary_text.append(f" file{'s' if len(file_counts) != 1 else ''}\n", style="bold")
+        console.print(summary_text)
 
     # ── AI SDK Violations table ──────────────────────────────────────
     seen_hints = {}  # doc_id → chub_hint (deduplicate)
@@ -1430,8 +1502,9 @@ def scan(filenames, as_json):
             ai_table.add_row(str(idx), str(v.filename), str(v.line), severity, issue)
             if v.chub_hint and v.doc_id and v.doc_id not in seen_hints:
                 seen_hints[v.doc_id] = v.chub_hint
-        console.print(ai_table)
-        console.print()
+        if not as_json:
+            console.print(ai_table)
+            console.print()
 
     # ── Python Violations table ──────────────────────────────────────
     if python_violations:
@@ -1451,7 +1524,8 @@ def scan(filenames, as_json):
 
         for idx, v in enumerate(python_violations, 1):
             py_table.add_row(str(idx), str(v.filename), str(v.line), v.code, v.message)
-        console.print(py_table)
+        if not as_json:
+            console.print(py_table)
 
     # ── JS/TS Violations table ───────────────────────────────────────
     if js_chub_violations:
@@ -1477,8 +1551,9 @@ def scan(filenames, as_json):
             js_table.add_row(str(idx), str(v.filename), str(v.line), severity, issue)
             if v.chub_hint and v.doc_id and v.doc_id not in seen_hints:
                 seen_hints[v.doc_id] = v.chub_hint
-        console.print(js_table)
-        console.print()
+        if not as_json:
+            console.print(js_table)
+            console.print()
 
     if c_chub_violations:
         c_table = Table(
@@ -1503,8 +1578,9 @@ def scan(filenames, as_json):
             c_table.add_row(str(idx), str(v.filename), str(v.line), severity, issue)
             if v.chub_hint and v.doc_id and v.doc_id not in seen_hints:
                 seen_hints[v.doc_id] = v.chub_hint
-        console.print(c_table)
-        console.print()
+        if not as_json:
+            console.print(c_table)
+            console.print()
 
     if java_chub_violations:
         java_table = Table(
@@ -1529,14 +1605,16 @@ def scan(filenames, as_json):
             java_table.add_row(str(idx), str(v.filename), str(v.line), severity, issue)
             if v.chub_hint and v.doc_id and v.doc_id not in seen_hints:
                 seen_hints[v.doc_id] = v.chub_hint
-        console.print(java_table)
-        console.print()
+        if not as_json:
+            console.print(java_table)
+            console.print()
 
     # ── Chub hints (one per SDK) ────────────────────────────────────
     if seen_hints:
-        console.print()
-        console.print(Rule("[bold green]RECOMMENDED FIXES[/bold green]", style="green"))
-        console.print()
+        if not as_json:
+            console.print()
+            console.print(Rule("[bold green]RECOMMENDED FIXES[/bold green]", style="green"))
+            console.print()
         for doc_id, hint_code in seen_hints.items():
             # Determine syntax highlighting based on hint content
             hint_lang = "python"
@@ -1551,23 +1629,25 @@ def scan(filenames, as_json):
                 if not any(kw in hint_code for kw in ["import ast", "import os", "def ", "class ", "    return"]):
                     hint_lang_flag = "javascript"
                     
-            console.print(Panel(
-                hint_panel,
-                title=f"[bold green]✦ {doc_id}[/bold green]",
-                subtitle=f"[dim]chub get {doc_id} --lang {hint_lang_flag}[/dim]",
-                border_style="green",
-                padding=(1, 2),
-            ))
+            if not as_json:
+                console.print(Panel(
+                    hint_panel,
+                    title=f"[bold green]✦ {doc_id}[/bold green]",
+                    subtitle=f"[dim]chub get {doc_id} --lang {hint_lang_flag}[/dim]",
+                    border_style="green",
+                    padding=(1, 2),
+                ))
 
-    # ── Footer ──────────────────────────────────────────────────────
-    console.print()
-    console.print(Panel(
-        "[bold]Commit blocked.[/bold] Fix the issues listed above and re-commit.\n"
-        "[dim]To suppress a false positive, add[/dim]  [cyan]# noqa: UP<code>[/cyan]  [dim]to the line.[/dim]",
-        border_style="red",
-        padding=(0, 2),
-    ))
-    console.print()
+    if not as_json:
+        # ── Footer ──────────────────────────────────────────────────────
+        console.print()
+        console.print(Panel(
+            "[bold]Commit blocked.[/bold] Fix the issues listed above and re-commit.\n"
+            "[dim]To suppress a false positive, add[/dim]  [cyan]# noqa: UP<code>[/cyan]  [dim]to the line.[/dim]",
+            border_style="red",
+            padding=(0, 2),
+        ))
+        console.print()
 
     # ── Generate markdown report (append to history) ──────────────────
     report_path = REPO_ROOT / "chub_guard_report.md"
@@ -1583,7 +1663,7 @@ def scan(filenames, as_json):
 
     # Build this run's section
     run_lines = [
-        f"## 🕐 Run: {timestamp}",
+        f"## 🕒 Run: {timestamp}",
         "",
         f"**{len(violations)}** issue{'s' if len(violations) != 1 else ''} found across **{len(file_counts)}** file{'s' if len(file_counts) != 1 else ''}.",
         "",
@@ -1751,7 +1831,7 @@ def scan(filenames, as_json):
         past_entries = []
         if existing:
             # Extract the previous "latest" run's timestamp + summary as a one-liner
-            prev_run = re.search(r"## 🕐 Run: (.+)\n\n\*\*(\d+)\*\* issue.*?across \*\*(\d+)\*\* file", existing)
+            prev_run = re.search(r"## 🕒 Run: (.+)\n\n\*\*(\d+)\*\* issue.*?across \*\*(\d+)\*\* file", existing)
             if prev_run:
                 past_entries.append(f"- `{prev_run.group(1)}` — {prev_run.group(2)} issue(s) across {prev_run.group(3)} file(s)")
             # Carry forward any existing history entries
@@ -1765,19 +1845,49 @@ def scan(filenames, as_json):
             full_report += HISTORY_HEADER + "\n".join(past_entries) + "\n"
 
         report_path.write_text(full_report, encoding="utf-8")
-        console.print()
-        console.print(Panel(
-            f"[bold green]📊 REPORT GENERATED[/bold green]\n\n"
-            f"A detailed markdown report has been saved to:\n"
-            f"[cyan]{report_path.resolve()}[/cyan]\n\n"
-            f"[dim]Use this report to fix issues across your entire project.[/dim]",
-            border_style="green",
-            padding=(1, 2)
-        ))
+        if not as_json:
+            console.print()
+            console.print(Panel(
+                f"[bold green]📊 REPORT GENERATED[/bold green]\n\n"
+                f"A detailed markdown report has been saved to:\n"
+                f"[cyan]{report_path.resolve()}[/cyan]\n\n"
+                f"[dim]Use this report to fix issues across your entire project.[/dim]",
+                border_style="green",
+                padding=(1, 2)
+            ))
     except Exception as e:
-        console.print(f"[yellow]⚠ Could not write report: {e}[/yellow]")
+        if not as_json:
+            console.print(f"[yellow]⚠️ Could not write report: {e}[/yellow]")
+        else:
+            sys.stderr.write(f"ERROR: Could not write report: {e}\n")
 
-    # Only block commit if there are real violations
+    if as_json:
+        import json as _json
+        output = []
+        for v in violations:
+            output.append({
+                "filename": str(v.filename),
+                "location": {"row": v.line, "column": v.col},
+                "code": v.code,
+                "message": v.message,
+                "chub_hint": v.chub_hint,
+                "doc_id": v.doc_id,
+            })
+        
+        # Robust UTF-8 JSON output to stdout
+        try:
+            json_str = _json.dumps(output, ensure_ascii=False)
+            if sys.platform == "win32":
+                # On Windows, we need to be careful with stdout encoding
+                sys.stdout.buffer.write(json_str.encode("utf-8"))
+                sys.stdout.buffer.flush()
+            else:
+                sys.stdout.write(json_str)
+                sys.stdout.flush()
+        except Exception as e:
+            sys.stderr.write(f"FATAL ERROR: Could not emit JSON: {e}\n")
+        sys.exit(0)
+
     total_blocking = len(ai_violations) + len(js_chub_violations) + len(c_chub_violations) + len(java_chub_violations) + len(python_violations)
     if total_blocking > 0:
         sys.exit(1)

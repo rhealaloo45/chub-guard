@@ -1,45 +1,56 @@
-# chub-guard for VS Code
+<div align="center">
+  <img src="images/logo.jpg" alt="Chub Guard Logo" width="120" />
+  <h1>🛡️ Chub Guard for VS Code</h1>
+  <p><b>Real-time detection of deprecated AI SDK patterns, legacy automation APIs, and outdated code.</b></p>
+</div>
 
-Real-time detection of deprecated AI SDK patterns, automation APIs, and legacy code.
+---
 
-## Features
+**Chub Guard** is a highly intelligent, zero-configuration VS Code extension that keeps your codebase modern. It actively scans your code against the **LATEST** documentation from [Context-Hub](https://github.com/andrewyng/context-hub) to flag deprecated usages of major AI libraries (OpenAI, Anthropic, Gemini, LangChain) and automation tools (Playwright, Selenium) before they break your builds.
 
-- Red squiggles on deprecated lines as you code
-- Side panel listing all violations with file + line
-- Jump directly to any deprecated line with one click
-- Fix manually (check off as you go) or send report to your coding agent
-- Pause/resume pre-commit hook from the panel
-- Force commit bypass when needed
-- Auto-installs chub-guard-init if not present in project
+## ✨ Why Chub Guard?
 
-## Requirements
+- **Zero-Effort Setup**: Works out of the box. The Python linting engine and documentation registries are **bundled directly inside the extension**. No manual `pip install` or configuration required!
+- **Cross-Language**: Intelligently scans Python (`.py`), JavaScript/TypeScript (`.js`, `.ts`, `.jsx`, `.tsx`), C/C++ (`.c`, `.cpp`), and Java (`.java`).
+- **Proactive Protection**: Catch deprecations *as you type*, long before they hit your CI pipeline.
 
-- Python 3.10+
-- pipx or pip (for auto-setup)
-- git (for hook management)
+## 🚀 Key Features
 
-## Setup
+*   🔴 **Real-Time Editor Squiggles**: Instantly highlights deprecated code with inline diagnostics as you type or save.
+*   📋 **Interactive Issues Panel**: A dedicated, collapsible side panel groups violations by file. Features severity badges (🔴 Breaking, 🟡 Warning, 🔵 Info) for quick triaging.
+*   🎯 **One-Click Navigation**: Click on any issue in the panel to instantly jump to the exact file and line number.
+*   🤖 **"Copy to fix with LLM"**: Instantly copies a highly structured markdown report of all violations to your clipboard. Paste it directly into ChatGPT, Claude, or GitHub Copilot Chat for automated, project-wide fixes.
+*   🛠️ **Git Hook Management**: Visually monitor, pause, or resume your `chub-guard` pre-commit hooks directly from the UI. Need to push an emergency fix? Use the **Force Commit** button to bypass the hook temporarily.
 
-Install the extension. On first activation in any workspace, it automatically
-runs `pipx run chub-guard-init` to set up the guard. No manual steps needed.
+## ⚙️ How it Works
 
-## Hiding the Panel
+1. **Install** the extension from the VS Code Marketplace.
+2. Open your project. The extension will automatically scan your files on startup and on every save.
+3. If deprecated patterns are found, the 🛡️ **Chub Guard Panel** will pop up, revealing where the issues are.
 
-If the panel is too noisy, click "Hide panel on save" at the bottom.
-Use the command palette: `chub-guard: Scan Now` to trigger manually.
+## ⌨️ Commands
 
-## Commands
+Access these via the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`):
 
-- `chub-guard: Scan Now` — manual scan
-- `chub-guard: Pause Pre-commit Hook` — stop blocking commits temporarily  
-- `chub-guard: Resume Pre-commit Hook` — re-enable blocking
-- `chub-guard: Hide Panel on Save` — suppress auto-open
-- `chub-guard: Show Panel on Save` — re-enable auto-open
+*   `chub-guard: Scan Now` — Force a manual scan of the entire workspace.
+*   `chub-guard: Pause Pre-commit Hook` — Stop the Git hook from blocking commits temporarily.
+*   `chub-guard: Resume Pre-commit Hook` — Re-enable the Git hook.
+*   `chub-guard: Hide Panel on Save` — Suppress the panel from auto-opening on every save (diagnostics will still show up as squiggles).
+*   `chub-guard: Show Panel on Save` — Re-enable auto-opening of the panel.
 
-## Suppressing False Positives
+## 🤫 Suppressing False Positives
 
-Add `# noqa: CHUB` to any line in Python, or `// noqa: CHUB` in JS/TS.
+Sometimes you absolutely need to use a deprecated method. You can easily suppress warnings for specific lines:
 
-## Part of chub-guard
+*   **Python:** Add `# noqa: CHUB` to the end of the line.
+*   **JS/TS/C/Java:** Add `// noqa: CHUB` to the end of the line.
 
-Full docs: https://github.com/rhealaloo45/chub-guard
+## 🔧 Requirements
+
+*   **VS Code**: Version `1.75.0` or higher.
+*   **Python**: Python 3.10+ must be installed on your system and available in your `PATH` (used internally by the bundled engine).
+
+---
+**Part of the Chub Guard Ecosystem**
+*For CLI usage, pre-commit hooks, and advanced global registry configurations, visit the main repository:*
+👉 **[github.com/rhealaloo45/chub-guard](https://github.com/rhealaloo45/chub-guard)**
