@@ -11,6 +11,8 @@ Modern development moves fast. AI coding assistants often suggest **deprecated A
 ## 🚀 The Solution
 `chub-guard-init` is the official one-command setup for `chub-guard`. It installs a specialized git-hook that blocks deprecated patterns—from AI SDKs and Automation to Legacy Python—before they ever reach your codebase by syncing with live documentation.
 
+**Prefer a GUI?** Use the [**Chub Guard VS Code Extension**](https://github.com/rhealaloo45/chub-guard/tree/main/vscode-chub-guard) for real-time, "as-you-type" feedback.
+
 ---
 
 ## 🏎️ Usage

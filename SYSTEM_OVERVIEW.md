@@ -9,9 +9,15 @@ The goal of the tool is to bridge the gap between static analysis and rapidly ev
 
 The tool operates as a hybrid background engine that triggers through multiple entry points:
 
-1. **Git Commit Hook:** Intercepts changes during the `pre-commit` stage to prevent deprecated code from reaching the repository.
-2. **VS Code Extension:** Provides real-time, "as-you-type" feedback with red squiggles and a dedicated issues panel.
+1. **VS Code Extension:** Provides real-time, "as-you-type" feedback with red squiggles and a dedicated issues panel. Distributed via the VS Code Marketplace. (See [vsc_flow.md](file:///Users/rhea/Desktop/Rhea%20Code/chub-guard/vsc_flow.md) for a detailed breakdown).
+2. **Git Commit Hook:** Intercepts changes during the `pre-commit` stage to prevent deprecated code from reaching the repository.
 3. **Manual CLI Execution:** Allows developers to run full-project audits on demand.
+
+### Multi-Platform Distribution
+`chub-guard` is designed for seamless adoption across different environments:
+*   **VS Code Marketplace**: Search for `chub-guard` for the easiest, GUI-first experience.
+*   **npm**: `npx chub-guard-init` for JS/TS projects.
+*   **PyPI**: `pip install chub-guard-init` or `pipx run chub-guard-init` for Python-centric workflows.
 
 ### 1. File Collection & Multi-Language Parsing
 When triggered, the engine analyzes either the staged files (Hook) or the active file/workspace (IDE):

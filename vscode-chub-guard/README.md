@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="images/logo.jpg" alt="Chub Guard Logo" width="120" />
+  <img src="images/logo.png" alt="Chub Guard Logo" width="120" />
   <h1>🛡️ Chub Guard for VS Code</h1>
   <p><b>Real-time detection of deprecated AI SDK patterns, legacy automation APIs, and outdated code.</b></p>
 </div>
@@ -45,6 +45,13 @@ Sometimes you absolutely need to use a deprecated method. You can easily suppres
 *   **Python:** Add `# noqa: CHUB` to the end of the line.
 *   **JS/TS/C/Java:** Add `// noqa: CHUB` to the end of the line.
 
+## ⚙️ Configuration
+
+You can customize the extension behavior in your VS Code settings:
+
+*   `chubGuard.showPanelOnSave`: Automatically open the Issues Panel when violations are found on save (Default: `true`).
+*   `chubGuard.pythonPath`: Specify the path to your Python executable if it's not in your system PATH (Default: `python`).
+
 ## 🔧 Requirements
 
 *   **VS Code**: Version `1.75.0` or higher.
@@ -52,5 +59,6 @@ Sometimes you absolutely need to use a deprecated method. You can easily suppres
 
 ---
 **Part of the Chub Guard Ecosystem**
+*Available via **VS Code Marketplace**, **npm**, and **PyPI**.*
 *For CLI usage, pre-commit hooks, and advanced global registry configurations, visit the main repository:*
 👉 **[github.com/rhealaloo45/chub-guard](https://github.com/rhealaloo45/chub-guard)**

@@ -8,21 +8,26 @@
 
 ## 🚀 Quick Start (Recommended)
 
-The fastest way to use `chub-guard` is through the **VS Code Extension**, which provides real-time, "as-you-type" feedback.
+`chub-guard` is available across multiple platforms to fit your workflow perfectly.
 
-### 1. Install via VS Code (Easiest)
-Search for **`chub-guard`** in the VS Code Marketplace. Upon activation, it will automatically detect and set up the guard for your project.
+### 1. VS Code Extension (Easiest)
+Get real-time, "as-you-type" feedback with squiggles and an interactive issues panel.
+- Search for **`chub-guard`** in the VS Code Marketplace.
+- Click **Install**.
+- It will automatically detect your project and start guarding.
+- 📖 **Learn More**: [Detailed VS Code Extension Flow](file:///Users/rhea/Desktop/Rhea%20Code/chub-guard/vsc_flow.md)
 
-### 2. Manual CLI Setup
-Alternatively, set up the guard manually in any Python or JS project:
-
-**Using npm:**
+### 2. JavaScript / npm
+Best for JS/TS projects and CI/CD pipelines.
 ```bash
 npx chub-guard-init
 ```
 
-**Using pipx:**
+### 3. Python / pip
+Best for Python-centric environments and data science projects.
 ```bash
+pip install chub-guard-init
+# OR
 pipx run chub-guard-init
 ```
 
