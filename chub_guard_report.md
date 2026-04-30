@@ -1,34 +1,53 @@
-# ðŸ›¡ï¸ Chub Guard Report
+# 🛡️ Chub Guard Report
 
-## ðŸ• Run: 2026-04-27 18:21:29
+## 🕒 Run: 2026-04-30 06:26:20
 
-**4** issues found across **1** file.
+**2** issues found across **1** file.
 
-### ðŸ›¡ï¸ Upgrade Readiness
+### 🛡️ Upgrade Readiness
 Your project was scanned against the **LATEST** documentation from Context-Hub to ensure you are aware of upcoming deprecations and migration paths.
 
-### ðŸ“¦ Local Environment
+### 📦 Local Environment
 The following versions are currently installed/pinned in your project:
 - (No pinned versions detected, using latest documentation)
 
-*Trend: â†“ 100 fewer than last run*
+*Trend: ↑ 1 more than last run*
 
-### âœ¦ AI SDK Deprecations
+### ✦ AI SDK Deprecations
 
 | # | File | Line | Severity | Issue |
 |---|------|------|----------|-------|
-| 1 | `test_deprecations.py` | 1 | ðŸŸ¡ Warning | Legacy Python 2 `print` statement detected. Use `print()` function. |
-| 2 | `test_deprecations.py` | 2 | ðŸ”´ Breaking | `urllib2` is deprecated/removed in Python 3. Use `urllib.request` or `requests`. *[python/urllib2]* |
-| 3 | `test_deprecations.py` | 5 | ðŸ”´ Breaking | Deprecated Selenium locator method. Use `find_element(By.ID, ...)` syntax. *[selenium/package]* |
+| 1 | `C:/Users/Rhea/AppData/Local/Temp/pytest-of-Rhea/pytest-0/test_openai_deprecated_caught0/test_openai.py` | 2 | 🔴 Breaking | `ChatCompletion.create` is flagged as deprecated or incorrect by chub docs. *[openai/package]* |
 
-### ðŸ Python Deprecations & Issues
+### 🐍 Python Deprecations & Issues
 
 | # | File | Line | Code | Issue |
 |---|------|------|------|-------|
-| 1 | `test_deprecations.py` | 1 | `invalid-syntax` | Simple statements must be separated by newlines or semicolons |
+| 1 | `C:/Users/Rhea/AppData/Local/Temp/pytest-of-Rhea/pytest-0/test_openai_deprecated_caught0/test_openai.py` | 2 | `UP035` | deprecated call |
 
 
-### ðŸ¤– Agent Prompt
+### Recommended Fixes
+
+#### ✦ `openai/package`
+
+```python
+from openai import OpenAI
+
+client = OpenAI()
+
+response = client.responses.create(
+    model="gpt-4.1",
+    instructions="You are a concise coding assistant.",
+    input="How do I reverse a list in Python?",
+)
+
+print(response.output_text)
+print(response._request_id)
+```
+
+> Full docs: `chub get openai/package --lang python`
+
+### 🤖 Agent Prompt
 
 Copy this into your coding agent to fix all issues:
 
@@ -36,13 +55,14 @@ Copy this into your coding agent to fix all issues:
 > For AI SDK deprecations use the recommended fix blocks above.
 > For Python deprecations apply standard pyupgrade fixes.
 > For JS/TS deprecations use the modern SDK patterns from chub docs.
-> Do not change any logic â€” only fix deprecated patterns."
+> Do not change any logic — only fix deprecated patterns."
 
 *To suppress a false positive, add `# noqa: UP<code>` to the line.*
 
 ---
 ## Previous Runs
 
+- `2026-04-30 06:26:19` — 1 issue(s) across 1 file(s)
 - `2026-04-27 18:18:05` â€” 104 issue(s) across 23 file(s)
 - `2026-04-27 18:14:14` â€” 120 issue(s) across 24 file(s)
 - `2026-04-27 18:10:54` â€” 120 issue(s) across 24 file(s)

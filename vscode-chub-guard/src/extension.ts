@@ -4,8 +4,46 @@ import { updateDiagnostics, clearDiagnostics } from './diagnostics';
 import { ChubGuardPanel } from './panel';
 import { pauseHook, resumeHook, getHookStatus } from './hookManager';
 import * as path from 'path';
+import * as crypto from 'crypto';
+import * as fs from 'fs';
+
+// VULN-02: Verify bundled script integrity before execution
+function verifyScriptIntegrity(extensionPath: string): boolean {
+  const scriptPath = path.join(extensionPath, 'scripts', 'chub_guard.py');
+  const expectedHash = vscode.workspace.getConfiguration('chubGuard').get<string>('scriptHash', '');
+
+  if (!expectedHash) {
+    // No hash configured — first install or dev mode, compute and warn
+    console.warn('[chub-guard] No script hash configured. Skipping integrity check.');
+    return true;
+  }
+
+  try {
+    const content = fs.readFileSync(scriptPath);
+    const actual = crypto.createHash('sha256').update(content).digest('hex');
+    if (actual !== expectedHash) {
+      vscode.window.showErrorMessage(
+        `chub-guard: Script integrity check FAILED.\n` +
+        `Expected: ${expectedHash.substring(0, 12)}...\n` +
+        `Got: ${actual.substring(0, 12)}...\n` +
+        `The bundled chub_guard.py may have been tampered with. Please reinstall the extension.`
+      );
+      return false;
+    }
+  } catch (e) {
+    vscode.window.showErrorMessage(`chub-guard: Could not verify script integrity: ${e}`);
+    return false;
+  }
+  return true;
+}
 
 export function activate(context: vscode.ExtensionContext) {
+  // VULN-02: Verify script integrity at activation
+  if (!verifyScriptIntegrity(context.extensionPath)) {
+    vscode.window.showErrorMessage('chub-guard: Extension disabled due to failed integrity check.');
+    return; // Refuse to activate if tampered
+  }
+
   vscode.window.showInformationMessage('chub-guard extension is now active!');
 
   const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
@@ -81,3 +119,4 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {}
+

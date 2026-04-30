@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'fs';
-import { execSync } from 'child_process';
-import { join } from 'path';
+import { execSync, execFileSync } from 'child_process';
+import { join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { createInterface } from 'readline';
 
@@ -19,28 +19,28 @@ const REGISTRY_JSON   = readFileSync(join(assetsDir, '.chub-docs', 'registry.jso
 
 function getPreCommitCommand() {
   try {
-    execSync('pre-commit --version', { stdio: 'ignore' });
+    execFileSync('pre-commit', ['--version'], { stdio: 'ignore' });
     return 'pre-commit';
-  } catch {}
+  } catch (err) { console.warn('[chub-guard] pre-commit check:', err.message); }
   const py = getPythonCommand();
   if (py) {
     try {
-      execSync(`${py} -m pre_commit --version`, { stdio: 'ignore' });
+      execFileSync(py, ['-m', 'pre_commit', '--version'], { stdio: 'ignore' });
       return `${py} -m pre_commit`;
-    } catch {}
+    } catch (err) { console.warn('[chub-guard] pre_commit module check:', err.message); }
   }
   return null;
 }
 
 function getPythonCommand() {
   try {
-    execSync('python3 --version', { stdio: 'ignore' });
+    execFileSync('python3', ['--version'], { stdio: 'ignore' });
     return 'python3';
-  } catch {}
+  } catch (err) { /* expected on Windows */ }
   try {
-    execSync('python --version', { stdio: 'ignore' });
+    execFileSync('python', ['--version'], { stdio: 'ignore' });
     return 'python';
-  } catch {}
+  } catch (err) { /* expected if no python */ }
   return null;
 }
 
@@ -102,18 +102,27 @@ async function safeWrite(filePath, content, label) {
   }
 }
 
-function installChub() {
+async function installChub() {
   console.log('📦 Checking for @aisuite/chub documentation engine...');
   try {
-    // Check if installed globally
-    execSync('chub --version', { stdio: 'ignore' });
+    // VULN-01: Use execFileSync instead of string-interpolated execSync
+    execFileSync('chub', ['--version'], { stdio: 'ignore' });
     console.log('✓ @aisuite/chub is already installed');
-  } catch {
+  } catch (err) {
+    console.warn('[chub-guard] chub not found:', err.message);
+    // VULN-08: Ask for explicit consent before global install
+    const consent = await ask('chub-guard wants to install @aisuite/chub globally via npm. Proceed? [y/N]: ');
+    if (consent !== 'y') {
+      console.log('  Skipped global install. You can run manually: npm install -g @aisuite/chub');
+      return;
+    }
     console.log('  Installing @aisuite/chub globally...');
     try {
-      execSync('npm install -g @aisuite/chub', { stdio: 'inherit' });
+      // VULN-01: Use execFileSync with array args instead of shell string
+      execFileSync('npm', ['install', '-g', '@aisuite/chub'], { stdio: 'inherit' });
       console.log('✓ @aisuite/chub installed successfully');
-    } catch (err) {
+    } catch (installErr) {
+      console.warn('[chub-guard] npm install failed:', installErr.message);
       console.log('⚠ Failed to install @aisuite/chub automatically.');
       console.log('  Please run manually: npm install -g @aisuite/chub');
     }
@@ -137,9 +146,11 @@ if (args[0] === 'run-all') {
   console.log('');
   try {
     const py = getPythonCommand() || 'python';
-    execSync(`${py} "${guardPath}" run`, { stdio: 'inherit' });
+    // VULN-01: Use execFileSync with array args instead of shell string interpolation
+    execFileSync(py, [guardPath, 'run'], { stdio: 'inherit' });
     process.exit(0);
   } catch (err) {
+    console.warn('[chub-guard] run-all failed:', err.message);
     process.exit(1);
   }
 }
@@ -150,13 +161,13 @@ console.log('──────────────────────�
 console.log('Setting up chub_guard in this project...');
 console.log('');
 
-// 1. Install chub engine
-installChub();
+// 1. Install chub engine (now async for consent prompt)
+await installChub();
 console.log('');
 
 // 2. Create directories
-try { mkdirSync(join(cwd, 'scripts'), { recursive: true }); } catch {}
-try { mkdirSync(join(cwd, '.chub-docs'), { recursive: true }); } catch {}
+try { mkdirSync(join(cwd, 'scripts'), { recursive: true }); } catch (err) { console.warn('[chub-guard] mkdir scripts:', err.message); }
+try { mkdirSync(join(cwd, '.chub-docs'), { recursive: true }); } catch (err) { console.warn('[chub-guard] mkdir .chub-docs:', err.message); }
 
 // 3. Write files (with overwrite protection)
 await safeWrite(join(cwd, 'scripts', 'chub_guard.py'), CHUB_GUARD_PY, 'scripts/chub_guard.py');
@@ -180,7 +191,13 @@ if (!isGitRepo()) {
 const preCommitCmd = getPreCommitCommand();
 if (preCommitCmd) {
   try {
-    execSync(`${preCommitCmd} install`, { cwd, stdio: 'inherit' });
+    // VULN-01: Use execFileSync with array args for pre-commit
+    if (preCommitCmd.includes(' -m ')) {
+      const parts = preCommitCmd.split(' ');
+      execFileSync(parts[0], ['-m', 'pre_commit', 'install'], { cwd, stdio: 'inherit' });
+    } else {
+      execFileSync(preCommitCmd, ['install'], { cwd, stdio: 'inherit' });
+    }
     console.log('');
     console.log('✓ pre-commit hook installed');
     console.log('');
@@ -191,13 +208,14 @@ if (preCommitCmd) {
     console.log('  1. Make a commit to test the guard');
     console.log('  2. Or run manually on the whole project: npx chub-guard-init run-all');
     console.log('');
-  } catch {
+  } catch (err) {
+    console.warn('[chub-guard] pre-commit install failed:', err.message);
     console.log(`⚠ ${preCommitCmd} install failed. Run manually: ${preCommitCmd} install`);
   }
 } else {
   console.log('⚠ pre-commit not found. To finish setup:');
   console.log('');
-  print('  pip install pre-commit');
-  print('  pre-commit install');
+  console.log('  pip install pre-commit');
+  console.log('  pre-commit install');
   console.log('');
 }

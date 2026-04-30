@@ -2,6 +2,11 @@
   "name": "chub-guard-init",
   "version": "1.2.1",
   "description": "One-command setup for chub_guard — the AI SDK deprecation linter",
+  "license": "MIT",
+  "author": "Rhea Laloo",
+  "repository": { "type": "git", "url": "https://github.com/rhealaloo45/chub-guard" },
+  "bugs": { "url": "https://github.com/rhealaloo45/chub-guard/issues" },
+  "keywords": ["security", "deprecation", "linter", "ai-sdk", "pre-commit"],
   "type": "module",
   "main": "src/index.js",
   "files": [

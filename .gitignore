@@ -1,0 +1,22 @@
+# chub-guard cache
+.chub-docs/*.md
+scripts/__pycache__/
+
+# Debug/test artifacts (VULN-20)
+stderr.txt
+stdout.txt
+test.md
+*.chub-test.md
+
+# Build artifacts
+vscode-chub-guard/out/
+vscode-chub-guard/node_modules/
+cli/dist/
+init/node_modules/
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/

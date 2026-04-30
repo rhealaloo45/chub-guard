@@ -28,13 +28,17 @@ jobs:
 
       - name: Get changed Python files
         id: changed
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- '*.py' | tr '\n' ' ')
+          FILES=$(git diff --name-only "origin/$BASE_REF"...HEAD -- '*.py' | tr '\n' ' ')
           echo "files=$FILES" >> $GITHUB_OUTPUT
 
       - name: Run chub guard
         if: steps.changed.outputs.files != ''
-        run: python scripts/chub_guard.py run ${{ steps.changed.outputs.files }}
+        env:
+          CHANGED_FILES: ${{ steps.changed.outputs.files }}
+        run: python scripts/chub_guard.py run $CHANGED_FILES
 
       - name: Cache chub docs
         uses: actions/cache@v4

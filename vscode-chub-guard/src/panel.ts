@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as crypto from 'crypto';
 import { Violation } from './runner';
 import { forceCommit } from './hookManager';
 
@@ -62,13 +63,27 @@ export class ChubGuardPanel {
           break;
         }
         case 'useLLM': {
+          // VULN-06: Confirm before copying potentially sensitive data
+          const copyConfirm = await vscode.window.showWarningMessage(
+            'This will copy the full scan report to clipboard. Ensure you are not pasting into a public service.',
+            'Copy', 'Cancel'
+          );
+          if (copyConfirm !== 'Copy') break;
+
           const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
           const reportPath = path.join(workspaceRoot, 'chub_guard_report.md');
           try {
             const doc = await vscode.workspace.openTextDocument(reportPath);
-            const content = doc.getText();
+            let content = doc.getText();
+            // VULN-06: Strip absolute file paths — replace with relative
+            if (workspaceRoot) {
+              const escapedRoot = workspaceRoot.replace(/[\\]/g, '\\\\').replace(/[/]/g, '/');
+              content = content.replace(new RegExp(escapedRoot.replace(/\\\\/g, '[\\\\/]'), 'gi'), '.');
+            }
+            // VULN-06: Strip potential secrets (API keys, tokens)
+            content = content.replace(/(?:api[_-]?key|token|secret|password|auth)\s*[=:]\s*['"]?[^\s'"]+/gi, '[REDACTED]');
             await vscode.env.clipboard.writeText(content);
-            vscode.window.showInformationMessage('Report copied to clipboard. Paste into your coding agent to fix all issues.');
+            vscode.window.showInformationMessage('Sanitized report copied to clipboard. Paste into your coding agent to fix all issues.');
           } catch {
             vscode.window.showErrorMessage('chub_guard_report.md not found. Run a scan first.');
           }
@@ -99,6 +114,8 @@ export class ChubGuardPanel {
   }
 
   private static _getHtml(violations: Violation[], hookStatus: HookStatus): string {
+    // VULN-04/12: Generate CSP nonce for inline script/style
+    const nonce = crypto.randomBytes(16).toString('base64');
     const hookColor = hookStatus === 'active' ? '#4caf50' : hookStatus === 'paused' ? '#ff9800' : '#9e9e9e';
     const hookLabel = hookStatus === 'active' ? '🟢 Active' : hookStatus === 'paused' ? '🔴 Paused' : '⚫ Not installed';
     const hookBtn = hookStatus === 'active'
@@ -168,7 +185,8 @@ export class ChubGuardPanel {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<style>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; img-src data:;">
+<style nonce="${nonce}">
   body { font-family: var(--vscode-font-family); font-size: 13px; color: var(--vscode-foreground); padding: 12px; margin: 0; }
   h2 { font-size: 14px; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
   .summary { font-size: 11px; color: var(--vscode-descriptionForeground); margin-bottom: 12px; }
@@ -240,7 +258,7 @@ ${violations.length === 0
 
 <div class="hide-hint" onclick="hidePanel()">Hide panel on save</div>
 
-<script>
+<script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
   const violations = ${violationData};
   let currentIdx = 0;

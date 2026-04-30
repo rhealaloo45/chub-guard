@@ -1,89 +1,93 @@
 {
   "gemini/genai": {
     "patterns": [
-      "from google.api_core.exceptions import GoogleAPIError",
-      "model.generate_content",
-      "genai.GenerationConfig",
       "from google.ai import generativelanguage_v1",
-      "gemini-1.5-flash",
-      "response.text",
-      "google.generativeai",
-      "from google.generativeai import types",
-      "gemini-1.5-pro",
+      "from google.api_core.exceptions import GoogleAPIError",
       "from google.generativeai",
+      "from google.generativeai import types",
+      "gemini-1.5-flash",
+      "gemini-1.5-pro",
+      "genai.GenerationConfig",
       "genai.configure(api_key=)",
+      "google.generativeai",
+      "import google.generativeai",
+      "model.generate_content",
       "response = model.generate_content(, stream=True)",
-      "import google.generativeai"
+      "response.text"
     ],
-    "last_updated": "2026-04-27"
+    "last_updated": "2026-04-24"
   },
   "openai/package": {
     "patterns": [
-      "text-davinci-003",
-      "ChatCompletion",
+      "gpt-5.5",
+      "ChatCompletion.create",
+      "client.chat.completions.create",
       "gpt-3.5-turbo-instruct",
       "event.type == \"error\"",
-      "client.chat.completions.create",
+      "openai.Completion.create",
+      "text-davinci-003",
       "openai.ChatCompletion.create",
-      "ChatCompletion.create",
-      "openai.Completion.create"
+      "ChatCompletion"
     ],
-    "last_updated": "2026-04-27"
+    "last_updated": "2026-04-30"
   },
   "rich/package": {
     "patterns": [
-      "console.print(text, markup=False)",
+      "14.3.3",
       "14.3.1",
       "rich.print",
-      "14.3.3"
+      "console.print(text, markup=False)"
     ],
-    "last_updated": "2026-04-27"
+    "last_updated": "2026-04-30"
   },
   "langchain/package": {
     "patterns": [
-      "langchain.chat_models",
-      "HuggingFaceHub",
       "SequentialChain",
       "LLMChain",
-      "from langchain.chat_models import ChatOpenAI",
+      "HuggingFaceHub",
       "from langchain.llms import OpenAI",
-      "1.2.11"
+      "from langchain.chat_models import ChatOpenAI",
+      "1.2.11",
+      "langchain.chat_models"
     ],
-    "last_updated": "2026-04-27"
+    "last_updated": "2026-04-30"
   },
   "pytest/package": {
     "patterns": [
-      "[tool.pytest.ini_options]",
       "pyproject.toml",
+      "pytest.raises(, match=)",
+      "[tool.pytest.ini_options]",
+      "async def",
       "pytest.toml",
-      "[tool.pytest]",
+      "conftest.py",
+      "@pytest.mark.parametrize",
       "pytest.ini",
-      "conftest.py"
+      "[tool.pytest]"
     ],
-    "last_updated": "2026-04-23"
+    "last_updated": "2026-04-30"
   },
   "click/package": {
     "patterns": [
       "8.2.0",
-      "click.parser",
-      "importlib.metadata.version(\"click\")",
       "click.__version__",
-      "click.echo"
+      "click.parser",
+      "click.echo",
+      "importlib.metadata.version(\"click\")"
     ],
-    "last_updated": "2026-04-27"
+    "last_updated": "2026-04-30"
   },
   "anthropic/package": {
     "patterns": [
-      "claude-instant",
-      "client.beta",
-      "Anthropic().completions.create",
-      "message.content",
-      "HUMAN_PROMPT",
-      "claude-2",
       "AI_PROMPT",
-      "client.completions.create"
+      "HUMAN_PROMPT",
+      "client.beta",
+      "claude-instant",
+      "client.completions.create",
+      "message.content",
+      "claude-2",
+      "Anthropic().completions.create"
     ],
-    "last_updated": "2026-04-27"
+    "last_updated": "2026-04-30"
   },
   "react/react": {
     "patterns": [
@@ -93,68 +97,68 @@
   },
   "sqlalchemy/package": {
     "patterns": [
-      "Session.scalars",
-      "2.1.0b1",
-      "2.0.48",
-      "Session.execute",
       "engine.execute",
-      "create_engine(, future=True)"
+      "2.0.48",
+      "Session.scalars",
+      "create_engine(, future=True)",
+      "Session.execute",
+      "2.1.0b1"
     ],
-    "last_updated": "2026-04-27"
+    "last_updated": "2026-04-30"
   },
   "alembic/package": {
     "patterns": [
-      "async",
-      "pyproject",
-      "alembic/env.py",
-      "alembic/versions/",
       "generic",
-      "alembic/script.py.mako",
-      "alembic.ini",
       "multidb",
       "1.15.0",
-      "alembic init",
       "ALTER TABLE",
-      "pyproject.toml"
+      "pyproject.toml",
+      "alembic/env.py",
+      "pyproject",
+      "alembic init",
+      "alembic/versions/",
+      "alembic/script.py.mako",
+      "alembic.ini",
+      "async"
     ],
-    "last_updated": "2026-04-27"
+    "last_updated": "2026-04-30"
   },
   "torch/package": {
     "patterns": [
+      "Stable (2.7.0)",
       "import torch",
       "2.10.0",
-      "v2.9.1",
-      "Stable (2.7.0)"
+      "v2.9.1"
     ],
-    "last_updated": "2026-04-27"
+    "last_updated": "2026-04-30"
   },
   "accelerate/package": {
     "patterns": [
-      "if __name__ == \"__main__\":",
+      "accelerate launch",
       "loss.backward",
-      ".to(device)",
-      "accelerate launch"
+      "if __name__ == \"__main__\":",
+      ".to(device)"
     ],
-    "last_updated": "2026-04-27"
+    "last_updated": "2026-04-30"
   },
   "albumentations/package": {
     "patterns": [
-      "2.0.0",
       "import albumentations",
+      "2.0.0",
       "A.Compose"
     ],
-    "last_updated": "2026-04-27"
+    "last_updated": "2026-04-30"
   },
   "aiohttp/package": {
     "patterns": [
-      "web.Application",
-      "resp.json",
       "resp.text",
       "resp.content",
+      "resp.read",
+      "web.Application",
       "aiohttp 4.0",
-      "resp.read"
+      "resp.json"
     ],
-    "last_updated": "2026-04-27"
+    "last_updated": "2026-04-30"
   },
   "angular/core": {
     "patterns": [
@@ -167,5 +171,11 @@
       "test_deprecated_pattern()"
     ],
     "last_updated": "2026-04-24T10:00:00"
+  },
+  "google/access-context-manager": {
+    "patterns": [
+      "accessLevels.list"
+    ],
+    "last_updated": "2026-04-30"
   }
 }

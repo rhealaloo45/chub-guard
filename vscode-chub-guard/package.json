@@ -2,7 +2,7 @@
   "name": "chub-guard",
   "displayName": "chub-guard",
   "description": "Detect deprecated AI SDK and automation patterns in real time",
-  "version": "1.0.3",
+  "version": "1.2.1",
   "publisher": "rhealaloo",
   "engines": {
     "vscode": "^1.75.0"
@@ -17,7 +17,10 @@
   "icon": "images/logo.png",
   "license": "MIT",
   "activationEvents": [
-    "onStartupFinished"
+    "workspaceContains:.chub-docs/registry.json",
+    "workspaceContains:scripts/chub_guard.py",
+    "workspaceContains:deprecations.json",
+    "onCommand:chubGuard.scan"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -55,6 +58,11 @@
           "type": "string",
           "default": "python",
           "description": "Path to the Python executable."
+        },
+        "chubGuard.scriptHash": {
+          "type": "string",
+          "default": "ea89f3c566a902c87c625c0ba6a514d81359333db1274427d820fc38257c6d74",
+          "description": "SHA256 hash of the bundled chub_guard.py script for integrity verification. Auto-generated at build time."
         }
       }
     }
@@ -62,7 +70,8 @@
   "scripts": {
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "vscode:prepublish": "npm run compile"
+    "vscode:prepublish": "npm run compile",
+    "postbuild": "node -e \"const crypto = require('crypto'); const fs = require('fs'); const hash = crypto.createHash('sha256').update(fs.readFileSync('scripts/chub_guard.py')).digest('hex'); const pkg = JSON.parse(fs.readFileSync('package.json')); pkg.contributes.configuration.properties['chubGuard.scriptHash'].default = hash; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));\""
   },
   "devDependencies": {
     "@types/vscode": "^1.75.0",

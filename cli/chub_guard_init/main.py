@@ -1,7 +1,11 @@
+import logging
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+logger = logging.getLogger("chub-guard-init")
+logging.basicConfig(level=logging.WARNING, format="%(name)s: %(message)s")
 
 # Package-relative assets (for installed version)
 PACKAGE_DIR = Path(__file__).parent
@@ -52,7 +56,11 @@ def safe_write(file_path: Path, content: str, label: str) -> None:
     try:
         file_path.write_text(content, encoding="utf-8")
         print(f"✓ {label}")
+    except PermissionError as e:
+        print(f"✗ Permission denied writing {label}: {e}")
+        raise
     except Exception as e:
+        logger.warning(f"Non-fatal error writing {label}: {e}")
         print(f"✗ Failed to write {label}: {e}")
 
 
@@ -68,11 +76,19 @@ def install_chub() -> None:
         print("   (Don't worry: the linter will automatically fetch docs from GitHub if needed)")
         return
 
+    # VULN-08: Ask for explicit consent before global install
+    consent = ask("chub-guard wants to install @aisuite/chub globally via npm. Proceed? [y/N]: ")
+    if consent != "y":
+        print("  Skipped global install. You can run manually: npm install -g @aisuite/chub")
+        return
+
     print("  Installing @aisuite/chub globally for better performance...")
     try:
-        subprocess.run(["npm", "install", "-g", "@aisuite/chub"], check=True, shell=True)
+        # VULN-01: shell=False to prevent command injection
+        subprocess.run([npm_path, "install", "-g", "@aisuite/chub"], check=True, shell=False)
         print("✓ @aisuite/chub installed successfully")
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as e:
+        logger.warning(f"npm install failed: {e}")
         print("💡 Note: Failed to install @aisuite/chub automatically. Using GitHub fallback instead.")
 
 def main() -> None:

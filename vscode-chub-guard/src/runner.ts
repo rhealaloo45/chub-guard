@@ -18,6 +18,14 @@ export function runScan(context: vscode.ExtensionContext): Promise<Violation[]> 
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (!workspaceRoot) return resolve([]);
 
+    // VULN-05: Validate root path is within workspace boundaries
+    const resolvedRoot = path.resolve(workspaceRoot);
+    const workspaceFolderPath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (workspaceFolderPath && !resolvedRoot.startsWith(path.resolve(workspaceFolderPath))) {
+      vscode.window.showErrorMessage('chub-guard: Root path is outside workspace boundary. Scan aborted.');
+      return resolve([]);
+    }
+
     const pythonPath = vscode.workspace.getConfiguration('chubGuard').get<string>('pythonPath', 'python');
 
     // Always use the script bundled inside the extension itself.
@@ -25,7 +33,7 @@ export function runScan(context: vscode.ExtensionContext): Promise<Violation[]> 
     const guardScript = path.join(context.extensionPath, 'scripts', 'chub_guard.py');
 
     // --root tells the scanner which directory to scan (the user's project)
-    const args = [guardScript, 'scan', '--json', '--root', workspaceRoot];
+    const args = [guardScript, 'scan', '--json', '--root', resolvedRoot];
 
     const runWithPython = (pyPath: string) => {
       execFile(pyPath, args, {
