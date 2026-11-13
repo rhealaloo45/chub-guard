@@ -487,6 +487,87 @@ def get_dynamic_deprecations(doc_path: Path) -> list[str]:
     return list(set(bad_patterns))
 
 
+# ── Current usage: what a doc itself presents as correct ─────────────
+# 1.2.1 read any name mentioned near a warning word as deprecated, so advice such as "Do not treat
+# `message.content` as a single string" made current calls come back as breaking. A doc's own current
+# examples are the better evidence: anything they use is not deprecated. Set CHUB_GUARD_LEGACY=1 to run
+# the 1.2.1 rules unchanged.
+LEGACY_RULES = os.environ.get("CHUB_GUARD_LEGACY") == "1"
+_NEGATIVE_KWS = ["incorrect", "deprecated", "legacy", "do not use", "do not", "avoid", "prohibited",
+                 "removed", "old way", "don't use", "❌", "⛔", "🚫"]
+_DEP_SECTION_KWS = ["deprecated", "legacy", "removal", "removed", "breaking", "migration"]
+
+
+def _current_usage(content: str) -> str:
+    """Text a doc presents as current: its example code (outside deprecated sections and ❌ blocks) and the
+    names in backticks in paragraphs or list items that don't warn against anything."""
+    lines = content.splitlines()
+    out: list[str] = []
+    para: list[str] = []
+    in_dep = in_code = counter = False
+
+    def flush():
+        nonlocal para
+        text = " ".join(para)
+        para = []
+        if text and not in_dep and not any(k in text.lower() for k in _NEGATIVE_KWS):
+            out.extend(re.findall(r"`([^`]+)`", text))
+
+    for i, line in enumerate(lines):
+        st = line.strip()
+        low = st.lower()
+        if st.startswith("```"):
+            flush()
+            if not in_code:
+                before = " ".join(lines[max(0, i - 3):i])
+                warned = any(m in before for m in ["❌", "⛔", "🚫", "**Don't", "**Incorrect", "**Deprecated"])
+                fixed = any(m in before for m in ["✅", "**Do ", "**Correct", "**Modern"])
+                counter = in_dep or (warned and not fixed)
+            in_code = not in_code
+            continue
+        if in_code:
+            if not counter and not any(k in low for k in _NEGATIVE_KWS):
+                out.append(line)
+            continue
+        if low.startswith("#"):
+            flush()
+            if low.startswith("## "):
+                in_dep = any(k in low for k in _DEP_SECTION_KWS)
+            continue
+        if not st or re.match(r"([-*+]|\d+\.)\s", st):
+            flush()
+        if st:
+            para.append(st)
+    flush()
+    return "\n".join(out)
+
+
+def _doc_current_usage(doc_id: str) -> str:
+    """Current usage across every cached doc for this id (Python, JS and the full reference)."""
+    safe = doc_id.replace("/", "__")
+    parts = []
+    for name in (f"{safe}.md", f"{safe}__full.md", f"{safe}__js.md", f"{safe}__js__full.md"):
+        path = DOCS_DIR / name
+        if path.is_file():
+            try:
+                parts.append(_current_usage(path.read_text(encoding="utf-8", errors="replace")))
+            except OSError:
+                pass
+    return "\n".join(parts)
+
+
+def _drop_current(patterns: list[str], usage: str) -> list[str]:
+    """Drop patterns the docs' own current examples use, and bare version numbers (e.g. "1.2.11")."""
+    if LEGACY_RULES:
+        return patterns
+    return [p for p in patterns if re.search(r"[A-Za-z]", p) and p not in usage]
+
+
+def _word_in(name: str, line: str) -> bool:
+    """name as a whole identifier in line (so `create` doesn't match `createdAt`)."""
+    return re.search(r"(?<![\w$])" + re.escape(name) + r"(?![\w$])", line) is not None
+
+
 def get_js_dynamic_deprecations(doc_path: Path) -> list[str]:
     """Extract deprecated patterns from JS chub docs with polarity-aware parsing."""
     if not doc_path.exists():
@@ -660,8 +741,9 @@ def analyze_js_file(f: Path, registry: dict, dynamic_patterns: dict) -> list[dic
             for part in parts:
                 clean = part.strip("()'\"`)").strip()
                 if clean and len(clean) > 2 and clean not in {"import", "from", "as", "const", "let", "var", "new", "require"}:
-                    # Only flag significant names (start with uppercase or are multi-segment)
-                    if clean[0].isupper() or "." in pattern:
+                    # Only flag class-like names (ChatCompletion, LLMChain), never single lowercase words like
+                    # `client` or `create`; 1.2.1 also took any name from a dotted pattern
+                    if (re.fullmatch(r"[A-Z][A-Za-z0-9_]+", clean) if not LEGACY_RULES else (clean[0].isupper() or "." in pattern)):
                         if clean not in deprecated_components:
                             deprecated_components[clean] = (doc_id, pattern)
 
@@ -725,7 +807,7 @@ def analyze_js_file(f: Path, registry: dict, dynamic_patterns: dict) -> list[dic
             # Check if this component name appears in the line as a usage
             # (not just as an import declaration)
             # Avoid re-flagging import lines already caught by Strategy 1/2
-            if comp_name in line:
+            if (comp_name in line) if LEGACY_RULES else _word_in(comp_name, line):
                 # Skip if this is an actual import/require/include declaration line (already handled)
                 is_import_line = bool(
                     re.match(r"""\s*import\s+.*from\s+['"]""", line) or
@@ -1415,6 +1497,12 @@ def scan(filenames, as_json, project_root):
         if doc_id in dynamic_patterns:
             js_dynamic_patterns[doc_id] = list(set(js_dynamic_patterns[doc_id] + dynamic_patterns[doc_id]))
 
+    # What the docs present as current (1.2.2): nothing they use in their own examples is deprecated
+    usage_by_doc = {doc_id: _doc_current_usage(doc_id) for doc_id in set(dynamic_patterns) | set(js_dynamic_patterns)}
+    for d in (dynamic_patterns, js_dynamic_patterns):
+        for doc_id in d:
+            d[doc_id] = _drop_current(d[doc_id], usage_by_doc[doc_id])
+
     # ── GAP 6: Load historical DB and merge with current dynamic patterns ──
     hist_db = _load_historical_db()
     for doc_id in list(dynamic_patterns.keys()):
@@ -1423,7 +1511,7 @@ def scan(filenames, as_json, project_root):
         _update_historical_db(doc_id, current)
         # Merge historical patterns into current detection
         historical = hist_db.get(doc_id, {}).get("patterns", [])
-        dynamic_patterns[doc_id] = list(set(current + historical))
+        dynamic_patterns[doc_id] = _drop_current(list(set(current + historical)), usage_by_doc[doc_id])
 
     for doc_id in list(js_dynamic_patterns.keys()):
         current = js_dynamic_patterns[doc_id]
@@ -1431,7 +1519,7 @@ def scan(filenames, as_json, project_root):
         _update_historical_db(doc_id, current)
         # Merge historical patterns into current detection
         historical = hist_db.get(doc_id, {}).get("patterns", [])
-        js_dynamic_patterns[doc_id] = list(set(current + historical))
+        js_dynamic_patterns[doc_id] = _drop_current(list(set(current + historical)), usage_by_doc[doc_id])
 
     # Synthesize CHUB violations for known deprecated AI SDK patterns
     for f in py_files:

@@ -15,6 +15,14 @@ This file documents the architectural changes made to `chub_guard.py` and the su
 ## Registry Intelligence Updates
 * **Global GitHub Sync:** Every 24 hours, the tool automatically fetches the latest community-contributed patterns from the global GitHub database and merges them into the local cache.
 
+## Unreleased: current code is no longer flagged
+
+* **Fix:** the doc reader treated any name mentioned near a warning word as deprecated, so advice like "Do not treat `message.content` as a single string" flagged the call itself, along with `client.chat.completions.create` and `response.text`. Patterns that a doc's own current examples use are now dropped (`_current_usage`), as are bare version numbers such as `1.2.11`.
+* **Fix (JS/TS):** deprecated *names* are only class-like identifiers (`ChatCompletion`, `LLMChain`) and are matched as whole words, so `client`, `create` and `openai` are no longer flagged on any line that contains them.
+* On 13 labelled snippets against the live docs, the 1.2.1 rules caught 18 of 19 deprecated lines with 11 wrong flags on current code; with this change, 18 of 19 with none.
+* `CHUB_GUARD_LEGACY=1` runs the 1.2.1 rules unchanged. Tests: `tests/test_current_usage.py`.
+* Not yet released: the version is still 1.2.1 in every package until the next publish.
+
 ## v1.2.1: The Universal Guard
 * **Branding Shift:** Rebranded from a specialized AI SDK linter to a Universal Deprecation Guard for modern engineering projects.
 * **Expanded Scope:** Added native support for identifying "Everything" deprecations:
